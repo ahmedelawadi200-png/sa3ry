@@ -1319,6 +1319,8 @@ async function saveNewProduct() {
 
   if (!name || !brand) { showToast('error', 'خطأ', 'اسم المنتج والماركة مطلوبين'); return; }
 
+  if (!db) { showToast('error', 'خطأ', 'انتظر تحميل Firebase أو أعد تحميل الصفحة'); return; }
+
   const storeRows = document.getElementById('adminStores').querySelectorAll('div[style]');
   const stores = [];
   storeRows.forEach(row => {
@@ -1329,31 +1331,40 @@ async function saveNewProduct() {
     if (storeName && price) stores.push({ name: storeName, price, location: location || 'غير محدد', phone: phone || '', whatsapp: '' });
   });
 
-  if (stores.length === 0) { showToast('error', 'خطأ', 'أضف محل واحد على الأقل'); return; }
+  if (stores.length === 0) { showToast('error', 'خطأ', 'أضف محل واحد على الأقل بسعر'); return; }
 
   const product = { name, brand, category, rating, reviews: 0, stores, image: image || '' };
 
   showLoading('جاري إضافة المنتج...');
   try {
-    const id = await addProductToFirestore(product);
+    const id = await Promise.race([
+      addProductToFirestore(product),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 15000))
+    ]);
     product.id = id;
     productsData.unshift(product);
     renderProducts();
     renderAdminProducts();
     hideLoading();
-    showToast('success', 'تم!', 'تم إضافة المنتج بنجاح');
-    // Reset form
+    showToast('success', 'تم!', 'تم إضافة المنتج بنجاح 🎉');
     document.getElementById('adminProductName').value = '';
     document.getElementById('adminProductBrand').value = '';
     document.getElementById('adminProductRating').value = '';
     document.getElementById('adminImageUrl').value = '';
-    document.getElementById('imagePreviewContainer').style.display = 'none';
-    document.getElementById('imageUploadPlaceholder').style.display = 'block';
+    const previewContainer = document.getElementById('imagePreviewContainer');
+    const placeholder = document.getElementById('imageUploadPlaceholder');
+    if (previewContainer) previewContainer.style.display = 'none';
+    if (placeholder) placeholder.style.display = 'block';
     document.getElementById('adminStores').innerHTML = '';
     addStoreField();
   } catch(e) {
     hideLoading();
-    showToast('error', 'خطأ', 'فشل إضافة المنتج');
+    if (e.message === 'timeout') {
+      showToast('error', 'خطأ', 'انتهى الوقت - تحقق من الإنترنت وحاول تاني');
+    } else {
+      showToast('error', 'خطأ', 'فشل إضافة المنتج: ' + e.message);
+    }
+    console.error('saveNewProduct error:', e);
   }
 }
 
