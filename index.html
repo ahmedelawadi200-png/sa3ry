@@ -11,9 +11,25 @@
 <meta name="description" content="قارن أسعار الإلكترونيات في مصر">
 <link rel="manifest" href="/sa3ry/manifest.json">
 <title>سعري - مقارنة أسعار الإلكترونيات</title>
+
+<!-- Preconnect for faster resource loading -->
+<link rel="preconnect" href="https://cdnjs.cloudflare.com">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://www.gstatic.com">
+<link rel="preconnect" href="https://unpkg.com">
+
+<!-- Async font loading -->
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<noscript><link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800&display=swap" rel="stylesheet"></noscript>
+
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+
+<!-- html5-qrcode loaded with defer -->
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js" defer></script>
+
 <style>
+
 :root{--primary:#1a73e8;--primary-dark:#1557b0;--primary-light:#e8f0fe;--secondary:#00c853;--accent:#ff6d00;--danger:#e53935;--bg:#f0f2f5;--bg-secondary:#e8eaed;--card:#fff;--text:#1a1a2e;--text-secondary:#5f6368;--text-tertiary:#9aa0a6;--border:#dadce0;--shadow-sm:0 1px 3px rgba(0,0,0,0.08);--shadow:0 2px 8px rgba(0,0,0,0.1);--shadow-md:0 4px 16px rgba(0,0,0,0.12);--shadow-lg:0 8px 32px rgba(0,0,0,0.15);--radius:12px;--radius-lg:16px;--radius-xl:24px;--transition:all 0.3s ease;--nav-height:70px}
 body.dark-mode{--bg:#121212;--bg-secondary:#1e1e1e;--card:#1e1e1e;--text:#fff;--text-secondary:#b0b0b0;--text-tertiary:#808080;--border:#333;--shadow-sm:0 1px 3px rgba(0,0,0,0.3);--shadow:0 2px 8px rgba(0,0,0,0.4)}
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -357,10 +373,22 @@ main{padding:0 0 20px}
 .error-message.show{display:flex}
 .success-message{color:var(--secondary);font-size:12px;margin-top:4px;display:none;align-items:center;gap:4px;font-weight:600}
 .success-message.show{display:flex}
-</style>
 
-<!-- html5-qrcode for QR/Barcode scanning -->
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+/* === PERFORMANCE OPTIMIZATIONS === */
+.product-card{will-change:transform;content-visibility:auto;contain-intrinsic-size:0 300px}
+.nav-icon{will-change:transform}
+.compare-bar{will-change:transform}
+.toast{will-change:transform}
+.modal-content{will-change:transform}
+.bottom-nav{will-change:transform}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  *,*::before,*::after{animation-duration:0.01ms!important;animation-iteration-count:1!important;transition-duration:0.01ms!important}
+  .product-card{content-visibility:visible}
+}
+</style>
+<base target="_blank">
 </head>
 <body>
 <div class="app-container" id="appContainer">
@@ -3560,5 +3588,1836 @@ function hideLoading() {
   <button onclick="dismissInstallBanner()" style="background:rgba(255,255,255,0.2);color:white;border:none;border-radius:8px;width:28px;height:28px;cursor:pointer;font-size:14px">✕</button>
 </div>
 
+</body>
+<script type="module">
+
+// ==================== LAZY FIREBASE WITH COMPATIBILITY LAYER ====================
+const firebaseConfig = {
+  apiKey: "AIzaSyCOHBV9P-ySBIRSQB9KEP-V9778EaC80vU",
+  authDomain: "sa3ry-pro.firebaseapp.com",
+  projectId: "sa3ry-pro",
+  storageBucket: "sa3ry-pro.firebasestorage.app",
+  messagingSenderId: "1095877859009",
+  appId: "1:1095877859009:web:6418f746359da6b8eca640",
+  measurementId: "G-RXS93VVJF1"
+};
+
+// Compatibility layer - exposes v8-style API using v9 modular API internally
+let _app = null;
+let _auth = null;
+let _db = null;
+let _googleProvider = null;
+let _facebookProvider = null;
+let _recaptchaVerifier = null;
+let _confirmationResult = null;
+let _modules = null;
+
+// Lazy load Firebase and create compatibility layer
+async function initFirebaseCompat() {
+  if (_modules) return _modules;
+
+  try {
+    const [{ initializeApp }, { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, orderBy, limit, startAfter, getDoc, setDoc, onSnapshot, serverTimestamp, increment, arrayUnion, arrayRemove, writeBatch },
+           { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, FacebookAuthProvider, signOut, onAuthStateChanged, updateProfile, sendPasswordResetEmail, deleteUser, RecaptchaVerifier, signInWithPhoneNumber, PhoneAuthProvider }]
+      = await Promise.all([
+        import('https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js'),
+        import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js'),
+        import('https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js')
+      ]);
+
+    _app = initializeApp(firebaseConfig);
+    _db = getFirestore(_app);
+    _auth = getAuth(_app);
+    _auth.languageCode = 'ar';
+    _googleProvider = new GoogleAuthProvider();
+    _googleProvider.setCustomParameters({ prompt: 'select_account' });
+    _facebookProvider = new FacebookAuthProvider();
+
+    // Create compatibility objects that expose v8-style API
+    const compatAuth = {
+      currentUser: _auth.currentUser,
+      onAuthStateChanged: (cb) => onAuthStateChanged(_auth, cb),
+      signInWithEmailAndPassword: (email, password) => signInWithEmailAndPassword(_auth, email, password),
+      createUserWithEmailAndPassword: (email, password) => createUserWithEmailAndPassword(_auth, email, password),
+      signInWithPopup: (provider) => signInWithPopup(_auth, provider),
+      signOut: () => signOut(_auth),
+      sendPasswordResetEmail: (email) => sendPasswordResetEmail(_auth, email),
+      updateProfile: (profile) => updateProfile(_auth.currentUser, profile),
+      deleteUser: () => deleteUser(_auth.currentUser),
+      useDeviceLanguage: () => { _auth.languageCode = 'ar'; },
+      signInWithPhoneNumber: (phoneNumber, appVerifier) => {
+        _confirmationResult = signInWithPhoneNumber(_auth, phoneNumber, appVerifier);
+        return _confirmationResult;
+      },
+      PhoneAuthProvider: {
+        PROVIDER_ID: 'phone'
+      }
+    };
+
+    const compatDb = {
+      collection: (name) => {
+        const colRef = collection(_db, name);
+        return {
+          doc: (id) => {
+            const docRef = doc(_db, name, id);
+            return {
+              get: () => getDoc(docRef),
+              set: (data) => setDoc(docRef, data),
+              update: (data) => updateDoc(docRef, data),
+              delete: () => deleteDoc(docRef),
+              onSnapshot: (cb) => onSnapshot(docRef, cb),
+              id: id,
+              collection: (subName) => compatDb.collection(name + '/' + id + '/' + subName)
+            };
+          },
+          add: (data) => addDoc(colRef, data),
+          get: () => getDocs(colRef),
+          where: (field, op, value) => {
+            const q = query(colRef, where(field, op, value));
+            return {
+              get: () => getDocs(q),
+              orderBy: (field, dir) => {
+                const q2 = query(colRef, where(field, op, value), orderBy(field, dir || 'asc'));
+                return { get: () => getDocs(q2) };
+              },
+              limit: (n) => {
+                const q2 = query(colRef, where(field, op, value), limit(n));
+                return { get: () => getDocs(q2) };
+              }
+            };
+          },
+          orderBy: (field, dir) => {
+            const q = query(colRef, orderBy(field, dir || 'asc'));
+            return {
+              get: () => getDocs(q),
+              limit: (n) => {
+                const q2 = query(colRef, orderBy(field, dir || 'asc'), limit(n));
+                return { get: () => getDocs(q2) };
+              }
+            };
+          },
+          limit: (n) => {
+            const q = query(colRef, limit(n));
+            return { get: () => getDocs(q) };
+          },
+          onSnapshot: (cb) => onSnapshot(colRef, cb)
+        };
+      },
+      batch: () => {
+        const batch = writeBatch(_db);
+        return {
+          set: (docRef, data) => {
+            // Need to convert compat docRef to actual docRef
+            const actualRef = doc(_db, docRef.id || 'products/default');
+            batch.set(actualRef, data);
+          },
+          update: (docRef, data) => {
+            const actualRef = doc(_db, docRef.id || 'products/default');
+            batch.update(actualRef, data);
+          },
+          delete: (docRef) => {
+            const actualRef = doc(_db, docRef.id || 'products/default');
+            batch.delete(actualRef);
+          },
+          commit: () => batch.commit()
+        };
+      },
+      runTransaction: async (updateFn) => {
+        // Simplified transaction support
+        console.warn('Transactions not fully supported in compat mode');
+      }
+    };
+
+    // Expose as global variables (same as original code expects)
+    window.auth = compatAuth;
+    window.db = compatDb;
+    window.googleProvider = _googleProvider;
+    window.facebookProvider = _facebookProvider;
+    window.recaptchaVerifier = _recaptchaVerifier;
+    window.confirmationResult = _confirmationResult;
+
+    // Also expose the old-style firebase object for any code that uses it
+    window.firebase = {
+      apps: [_app],
+      initializeApp: () => _app,
+      auth: () => compatAuth,
+      firestore: () => compatDb
+    };
+
+    _modules = { app: _app, auth: _auth, db: _db, compatAuth, compatDb };
+    return _modules;
+  } catch (e) {
+    console.error('Firebase init failed:', e);
+    showToast('حدث خطأ في تحميل Firebase', 'error');
+    return null;
+  }
+}
+
+// Make initFirebaseCompat available globally
+window.initFirebaseCompat = initFirebaseCompat;
+
+// ==================== PERFORMANCE UTILITIES ====================
+const Cache = {
+  get(key) {
+    try {
+      const item = localStorage.getItem('sa3ry_' + key);
+      if (!item) return null;
+      const { data, timestamp } = JSON.parse(item);
+      if (Date.now() - timestamp > 5 * 60 * 1000) {
+        localStorage.removeItem('sa3ry_' + key);
+        return null;
+      }
+      return data;
+    } catch { return null; }
+  },
+  set(key, data) {
+    try {
+      localStorage.setItem('sa3ry_' + key, JSON.stringify({ data, timestamp: Date.now() }));
+    } catch { /* storage full */ }
+  },
+  clear() {
+    Object.keys(localStorage).forEach(k => { if (k.startsWith('sa3ry_')) localStorage.removeItem(k); });
+  }
+};
+
+function debounce(fn, ms = 300) {
+  let timer;
+  return (...args) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), ms);
+  };
+}
+
+// ==================== ORIGINAL APP CODE ====================
+// ==================== STATE ====================
+let currentUser = null;
+let isGuest = false;
+let currentCategory = 'all';
+let currentBrand = 'all';
+let currentPrice = 100000;
+let currentSort = 'best';
+let searchQuery = '';
+let compareList = [];
+let cart = [];
+let favorites = [];
+let priceAlerts = [];
+let recentlyViewed = [];
+let currentProduct = null;
+let currentStore = null;
+let onboardingSlide = 0;
+let darkMode = false;
+
+// ==================== INIT ====================
+document.addEventListener('DOMContentLoaded', function() {
+  initFirebaseCompatCompat().then(() => {
+    if (auth) {
+      auth.onAuthStateChanged((user) => {
+        if (user) {
+          // فقط لو مش عنده يوزر محفوظ
+          const saved = localStorage.getItem('sa3ry_user');
+          if (!saved) {
+            currentUser = {
+              name: user.displayName || 'مستخدم',
+              email: user.email || '',
+              phone: user.phoneNumber || '',
+              avatar: user.photoURL || '👤',
+              uid: user.uid,
+              provider: user.providerData[0]?.providerId || 'email'
+            };
+            localStorage.setItem('sa3ry_user', JSON.stringify(currentUser));
+          }
+        }
+      });
+    }
+  });
+  initApp();
+});
+
+function initApp() {
+  const savedUser = localStorage.getItem('sa3ry_user');
+  const savedGuest = localStorage.getItem('sa3ry_guest');
+  const savedDark = localStorage.getItem('sa3ry_dark');
+  const savedFavs = localStorage.getItem('sa3ry_favorites');
+  const savedCart = localStorage.getItem('sa3ry_cart');
+  const savedAlerts = localStorage.getItem('sa3ry_alerts');
+  const savedRecent = localStorage.getItem('sa3ry_recent');
+
+  if (savedDark === 'true') { darkMode = true; document.body.classList.add('dark-mode'); }
+  if (savedFavs) try { favorites = JSON.parse(savedFavs); } catch(e) {}
+  if (savedCart) try { cart = JSON.parse(savedCart); } catch(e) {}
+  if (savedAlerts) try { priceAlerts = JSON.parse(savedAlerts); } catch(e) {}
+  if (savedRecent) try { recentlyViewed = JSON.parse(savedRecent); } catch(e) {}
+
+  let progress = 0;
+  const splashBar = document.getElementById('splashBar');
+  const splashInterval = setInterval(() => {
+    progress += 20;
+    if (splashBar) splashBar.style.width = progress + '%';
+    if (progress >= 100) {
+      clearInterval(splashInterval);
+      setTimeout(() => {
+        document.getElementById('splashScreen').classList.add('hidden');
+        // ✅ لو في يوزر محفوظ - روح للتطبيق مباشرةً
+        if (savedUser) {
+          try {
+            currentUser = JSON.parse(savedUser);
+            // تحقق إن البيانات صحيحة
+            if (currentUser && currentUser.uid) {
+              showMainApp();
+            } else {
+              localStorage.removeItem('sa3ry_user');
+              showLoginGate();
+            }
+          } catch(e) {
+            localStorage.removeItem('sa3ry_user');
+            showLoginGate();
+          }
+        } else if (savedGuest === 'true') {
+          isGuest = true;
+          showMainApp();
+        } else {
+          showLoginGate();
+        }
+      }, 300);
+    }
+  }, 200);
+
+  window.addEventListener('online', () => { const b = document.getElementById('offlineBanner'); if(b) b.classList.remove('show'); });
+  window.addEventListener('offline', () => { const b = document.getElementById('offlineBanner'); if(b) b.classList.add('show'); });
+  if (!navigator.onLine) { const b = document.getElementById('offlineBanner'); if(b) b.classList.add('show'); }
+
+  document.addEventListener('click', (e) => {
+    const searchContainer = document.querySelector('.search-container');
+    const suggestions = document.getElementById('searchSuggestions');
+    if (searchContainer && suggestions && !searchContainer.contains(e.target)) {
+      suggestions.style.display = 'none';
+    }
+  });
+}
+
+// ==================== ONBOARDING ====================
+function showOnboarding() {
+  document.getElementById('onboardingScreen').style.display = 'flex';
+}
+
+function nextOnboardingSlide() {
+  const slides = document.querySelectorAll('.onboarding-slide');
+  const dots = document.querySelectorAll('.onboarding-dots .dot');
+  const nextBtn = document.getElementById('nextOnboarding');
+
+  slides[onboardingSlide].classList.remove('active');
+  dots[onboardingSlide].classList.remove('active');
+  onboardingSlide++;
+
+  if (onboardingSlide >= slides.length) {
+    localStorage.setItem('sa3ry_onboarding', 'true');
+    document.getElementById('onboardingScreen').style.display = 'none';
+    showLoginGate();
+    return;
+  }
+
+  slides[onboardingSlide].classList.add('active');
+  dots[onboardingSlide].classList.add('active');
+
+  if (onboardingSlide === slides.length - 1) {
+    nextBtn.innerHTML = 'ابدأ <i class="fas fa-arrow-left"></i>';
+  }
+}
+
+function skipOnboarding() {
+  localStorage.setItem('sa3ry_onboarding', 'true');
+  document.getElementById('onboardingScreen').style.display = 'none';
+  showLoginGate();
+}
+
+// ==================== AUTH ====================
+function showLoginGate() {
+  document.getElementById('loginGate').style.display = 'flex';
+  document.getElementById('mainAppContent').style.display = 'none';
+}
+
+function switchAuthTab(tab) {
+  document.getElementById('loginTab').classList.toggle('active', tab === 'login');
+  document.getElementById('registerTab').classList.toggle('active', tab === 'register');
+  document.getElementById('loginFormGate').style.display = tab === 'login' ? 'block' : 'none';
+  document.getElementById('registerFormGate').style.display = tab === 'register' ? 'block' : 'none';
+}
+
+function togglePassword(id) {
+  const input = document.getElementById(id);
+  const btn = input.parentElement.querySelector('.toggle-password i');
+  if (input.type === 'password') {
+    input.type = 'text';
+    btn.className = 'fas fa-eye-slash';
+  } else {
+    input.type = 'password';
+    btn.className = 'fas fa-eye';
+  }
+}
+
+function handleLogin() {
+  const isEmailValid = validateLoginEmail();
+  const isPasswordValid = validateLoginPassword();
+
+  if (!isEmailValid || !isPasswordValid) {
+    showToast('error', 'خطأ', 'يرجى تصحيح الأخطاء أولاً');
+    return;
+  }
+
+  const email = document.getElementById('gateLoginEmail').value.trim();
+  const password = document.getElementById('gateLoginPassword').value;
+
+  if (!auth) {
+    showToast('error', 'خطأ', 'Firebase غير مفعل - أضف إعداداتك');
+    return;
+  }
+
+  showLoading('جاري تسجيل الدخول...');
+
+  auth.signInWithEmailAndPassword(email, password)
+    .then((result) => {
+      const user = result.user;
+      currentUser = {
+        name: user.displayName || 'مستخدم',
+        email: user.email,
+        phone: user.phoneNumber || '',
+        avatar: user.photoURL || '👤',
+        uid: user.uid
+      };
+      localStorage.setItem('sa3ry_user', JSON.stringify(currentUser));
+      hideLoading();
+      showToast('success', 'تم!', 'تم تسجيل الدخول بنجاح');
+      showMainApp();
+    })
+    .catch((error) => {
+      hideLoading();
+      showToast('error', 'خطأ', getAuthErrorMessage(error.code));
+    });
+}
+
+function handleRegister() {
+  const isNameValid = validateRegName();
+  const isPhoneValid = validateRegPhone();
+  const isEmailValid = validateRegEmail();
+  const isPasswordValid = validateRegPassword();
+  const isConfirmValid = validateRegConfirmPassword();
+
+  if (!isNameValid || !isPhoneValid || !isEmailValid || !isPasswordValid || !isConfirmValid) {
+    showToast('error', 'خطأ', 'يرجى تصحيح الأخطاء أولاً');
+    return;
+  }
+
+  const name = document.getElementById('gateRegName').value.trim();
+  const phone = document.getElementById('gateRegPhone').value.trim();
+  const email = document.getElementById('gateRegEmail').value.trim();
+  const password = document.getElementById('gateRegPassword').value;
+
+  if (!auth) {
+    showToast('error', 'خطأ', 'Firebase غير مفعل - أضف إعداداتك');
+    return;
+  }
+
+  showLoading('جاري إنشاء الحساب...');
+
+  auth.createUserWithEmailAndPassword(email, password)
+    .then((result) => {
+      return result.user.updateProfile({
+        displayName: name,
+        photoURL: null
+      }).then(() => {
+        currentUser = {
+          name: name,
+          email: email,
+          phone: phone,
+          avatar: '👤',
+          uid: result.user.uid
+        };
+        localStorage.setItem('sa3ry_user', JSON.stringify(currentUser));
+        hideLoading();
+        showToast('success', 'تم!', 'تم إنشاء الحساب بنجاح');
+        showMainApp();
+      });
+    })
+    .catch((error) => {
+      hideLoading();
+      showToast('error', 'خطأ', getAuthErrorMessage(error.code));
+    });
+}
+
+function handleGoogleLogin() {
+  if (!auth || !googleProvider) {
+    showToast('error', 'خطأ', 'Firebase غير متصل');
+    return;
+  }
+
+  showLoading('جاري الاتصال بـ Google...');
+
+  auth.signInWithPopup(googleProvider)
+    .then((result) => {
+      const user = result.user;
+      currentUser = {
+        name: user.displayName || 'مستخدم',
+        email: user.email,
+        phone: user.phoneNumber || '',
+        avatar: user.photoURL || '👤',
+        uid: user.uid,
+        provider: 'google'
+      };
+      localStorage.setItem('sa3ry_user', JSON.stringify(currentUser));
+      hideLoading();
+      showToast('success', 'تم!', 'أهلاً ' + (user.displayName || 'بيك') + ' 👋');
+      showMainApp();
+    })
+    .catch((error) => {
+      hideLoading();
+      if (error.code === 'auth/popup-blocked') {
+        showToast('error', 'خطأ', 'السماح بالـ Popup مطلوب في المتصفح');
+      } else {
+        showToast('error', 'خطأ', getAuthErrorMessage(error.code));
+      }
+    });
+}
+
+function handleFacebookLogin() {
+  showToast('info', 'قريباً', 'تسجيل الدخول بـ Facebook سيكون متاحاً قريباً');
+}
+
+function enterGuestMode() {
+  isGuest = true;
+  localStorage.setItem('sa3ry_guest', 'true');
+  showToast('info', 'تصفح كزائر', 'يمكنك تصفح الأسعار بدون تسجيل');
+  showMainApp();
+}
+
+function showForgotPassword() {
+  openModal('forgotPasswordModal');
+}
+
+function sendPasswordReset() {
+  const email = document.getElementById('forgotEmail').value.trim();
+
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    showToast('error', 'خطأ', 'أدخل بريد إلكتروني صحيح');
+    return;
+  }
+
+  if (!auth) {
+    showToast('error', 'خطأ', 'Firebase غير مفعل - أضف إعداداتك');
+    return;
+  }
+
+  showLoading('جاري الإرسال...');
+
+  auth.sendPasswordResetEmail(email)
+    .then(() => {
+      hideLoading();
+      closeModal('forgotPasswordModal');
+      showToast('success', 'تم!', 'تم إرسال رابط الاستعادة');
+    })
+    .catch((error) => {
+      hideLoading();
+      showToast('error', 'خطأ', getAuthErrorMessage(error.code));
+    });
+}
+
+function logout() {
+  if (auth) {
+    auth.signOut().then(() => {
+      console.log('Firebase signOut successful');
+    }).catch((error) => {
+      console.log('Firebase signOut error:', error);
+    });
+  }
+
+  currentUser = null;
+  isGuest = false;
+  localStorage.removeItem('sa3ry_user');
+  localStorage.removeItem('sa3ry_guest');
+  showToast('success', 'تم!', 'تم تسجيل الخروج');
+
+  closeModal('profileModal');
+  closeModal('settingsModal');
+
+  setTimeout(() => {
+    showLoginGate();
+  }, 1000);
+}
+
+// ==================== MAIN APP ====================
+function showMainApp() {
+  document.getElementById('loginGate').style.display = 'none';
+  document.getElementById('mainAppContent').style.display = 'block';
+
+  if (isGuest) {
+    document.getElementById('guestBanner').style.display = 'flex';
+  } else {
+    document.getElementById('guestBanner').style.display = 'none';
+  }
+
+  renderCategories();
+  renderBrandFilters();
+  renderProducts();
+  updateProfileStats();
+  updateCartBadge();
+  updateNotificationsBadge();
+  renderRecentlyViewed();
+}
+
+function goHome() {
+  resetFilters();
+  switchTab('home', document.querySelector('[data-tab="home"]'));
+}
+
+// ==================== CATEGORIES ====================
+function renderCategories() {
+  const grid = document.getElementById('categoriesGrid');
+  if (!grid) return;
+  grid.innerHTML = categories.map(cat => `
+    <div class="category-card ${currentCategory === cat.id ? 'active' : ''}" onclick="selectCategory('${cat.id}')">
+      <div class="category-icon">${cat.icon}</div>
+      <div class="category-name">${cat.name}</div>
+    </div>
+  `).join('');
+}
+
+function selectCategory(catId) {
+  currentCategory = catId === currentCategory ? 'all' : catId;
+  renderCategories();
+  renderProducts();
+}
+
+// ==================== BRAND FILTERS ====================
+function renderBrandFilters() {
+  const row = document.getElementById('filtersRow');
+  if (!row) return;
+  const allBtn = `<button type="button" class="filter-chip ${currentBrand === 'all' ? 'active' : ''}" data-brand="all" onclick="filterBrand('all',this)"><i class="fas fa-filter"></i> الكل</button>`;
+  const brandBtns = brands.map(b => `
+    <button type="button" class="filter-chip ${currentBrand === b ? 'active' : ''}" data-brand="${b}" onclick="filterBrand('${b}',this)">${b}</button>
+  `).join('');
+  row.innerHTML = allBtn + brandBtns;
+}
+
+function filterBrand(brand, btn) {
+  currentBrand = brand;
+  renderBrandFilters();
+  renderProducts();
+}
+
+// ==================== PRICE FILTER ====================
+function filterPrice(value) {
+  currentPrice = parseInt(value);
+  document.getElementById('currentPriceRange').textContent = parseInt(value).toLocaleString() + ' ج.م';
+  renderProducts();
+}
+
+// ==================== SORT ====================
+function sortProducts(sortType, btn) {
+  currentSort = sortType;
+  document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderProducts();
+}
+
+// ==================== PRODUCTS ====================
+function getFilteredProducts() {
+  let filtered = productsData.filter(p => {
+    if (currentCategory !== 'all' && p.category !== currentCategory) return false;
+    if (currentBrand !== 'all' && p.brand !== currentBrand) return false;
+    const minPrice = Math.min(...p.stores.map(s => s.price));
+    if (minPrice > currentPrice) return false;
+    if (searchQuery && !p.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    return true;
+  });
+
+  if (currentSort === 'price-low') {
+    filtered.sort((a, b) => Math.min(...a.stores.map(s => s.price)) - Math.min(...b.stores.map(s => s.price)));
+  } else if (currentSort === 'price-high') {
+    filtered.sort((a, b) => Math.max(...b.stores.map(s => s.price)) - Math.max(...a.stores.map(s => s.price)));
+  } else if (currentSort === 'rating') {
+    filtered.sort((a, b) => b.rating - a.rating);
+  }
+  // 'best' uses default order
+
+  return filtered;
+}
+
+function renderProducts() {
+  const grid = document.getElementById('productsGrid');
+  const loading = document.getElementById('loadingProducts');
+  const empty = document.getElementById('emptyState');
+  const count = document.getElementById('resultsCount');
+
+  if (loading) loading.style.display = 'none';
+
+  const products = getFilteredProducts();
+
+  if (count) count.textContent = products.length + ' منتج';
+
+  if (products.length === 0) {
+    if (grid) grid.innerHTML = '';
+    if (empty) empty.style.display = 'block';
+    return;
+  }
+
+  if (empty) empty.style.display = 'none';
+
+  if (!grid) return;
+  grid.innerHTML = products.map(p => {
+    const minPrice = Math.min(...p.stores.map(s => s.price));
+    const maxPrice = Math.max(...p.stores.map(s => s.price));
+    const savings = maxPrice - minPrice;
+    const bestStore = p.stores.reduce((a, b) => a.price < b.price ? a : b);
+    const isFav = favorites.includes(p.id);
+    const isCompare = compareList.includes(p.id);
+
+    return `
+    <div class="product-card" onclick="showProductDetail(${p.id})">
+      <div class="product-header">
+        <div class="product-image">${p.icon}</div>
+        <div class="product-info">
+          <div class="product-brand"><i class="fas fa-check-circle"></i> ${p.brand}</div>
+          <div class="product-name">${p.name}</div>
+          <div class="product-rating">
+            <span class="stars">${'★'.repeat(Math.floor(p.rating))}${'☆'.repeat(5 - Math.floor(p.rating))}</span>
+            <span>${p.rating} (${p.reviews})</span>
+          </div>
+        </div>
+      </div>
+      ${savings > 0 ? `<div class="savings-badge"><i class="fas fa-tag"></i> وفّر ${savings.toLocaleString()} ج.م</div>` : ''}
+      <div class="price-comparison">
+        ${p.stores.slice(0, 3).map((s, i) => `
+          <div class="price-row ${s.price === minPrice ? 'best-price' : ''}">
+            <div class="store-info">
+              <div class="store-logo">🏪</div>
+              <div>
+                <div class="store-name">${s.name}</div>
+                <div class="store-location"><i class="fas fa-map-marker-alt"></i> ${s.location}</div>
+              </div>
+            </div>
+            <div class="price-tag">
+              <span class="price-value ${s.price === minPrice ? '' : ''}">${s.price.toLocaleString()}</span>
+              <span class="price-currency">ج.م</span>
+              ${s.price === minPrice ? '<span class="best-price-badge">الأفضل</span>' : ''}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+      <div class="product-actions">
+        <button type="button" class="btn btn-primary" style="flex:1;font-size:13px;padding:10px" onclick="event.stopPropagation();addToCart(${p.id})"><i class="fas fa-cart-plus"></i> أضف للسلة</button>
+        <button type="button" class="share-btn ${isFav ? '' : ''}" onclick="event.stopPropagation();toggleFavorite(${p.id})" title="مفضلة"><i class="fas ${isFav ? 'fa-heart' : 'fa-heart'}" style="color:${isFav ? '#e53935' : ''}"></i></button>
+        <button type="button" class="share-btn ${isCompare ? '' : ''}" onclick="event.stopPropagation();toggleCompare(${p.id})" title="قارن"><i class="fas ${isCompare ? 'fa-check' : 'fa-balance-scale'}"></i></button>
+      </div>
+      <div class="product-actions">
+        <button type="button" class="btn btn-text" style="flex:1" onclick="event.stopPropagation();showPriceAlert(${p.id})"><i class="fas fa-bell"></i> تنبيه السعر</button>
+        <button type="button" class="btn btn-text" style="flex:1" onclick="event.stopPropagation();showContactModal(${p.id}, '${bestStore.name}')"><i class="fas fa-phone"></i> اتصل بالمحل</button>
+      </div>
+    </div>
+    `;
+  }).join('');
+}
+
+function resetFilters() {
+  currentCategory = 'all';
+  currentBrand = 'all';
+  currentPrice = 100000;
+  searchQuery = '';
+  document.getElementById('searchInput').value = '';
+  document.getElementById('priceRange').value = 100000;
+  document.getElementById('currentPriceRange').textContent = '100,000 ج.م';
+  renderCategories();
+  renderBrandFilters();
+  renderProducts();
+}
+
+// ==================== SEARCH ====================
+function handleSearchInput() {
+  const input = document.getElementById('searchInput');
+  const suggestions = document.getElementById('searchSuggestions');
+  if (input.value.length > 0) {
+    suggestions.style.display = 'block';
+  } else {
+    suggestions.style.display = 'none';
+  }
+}
+
+function performSearch() {
+  const input = document.getElementById('searchInput');
+  searchQuery = input.value.trim();
+  document.getElementById('searchSuggestions').style.display = 'none';
+  renderProducts();
+  if (searchQuery) {
+    addRecentSearch(searchQuery);
+  }
+}
+
+function quickSearch(query) {
+  document.getElementById('searchInput').value = query;
+  searchQuery = query;
+  document.getElementById('searchSuggestions').style.display = 'none';
+  renderProducts();
+  addRecentSearch(query);
+}
+
+function addRecentSearch(query) {
+  let recent = JSON.parse(localStorage.getItem('sa3ry_recent_searches') || '[]');
+  recent = recent.filter(q => q !== query);
+  recent.unshift(query);
+  if (recent.length > 5) recent.pop();
+  localStorage.setItem('sa3ry_recent_searches', JSON.stringify(recent));
+  renderRecentSearches();
+}
+
+function renderRecentSearches() {
+  const container = document.getElementById('recentSearches');
+  if (!container) return;
+  const recent = JSON.parse(localStorage.getItem('sa3ry_recent_searches') || '[]');
+  container.innerHTML = recent.map(q => `
+    <div class="suggestion-item" onclick="quickSearch('${q}')"><i class="fas fa-history"></i> ${q}</div>
+  `).join('');
+}
+
+function openImageSearch() {
+  showToast('info', 'قريباً', 'ميزة البحث بالصورة قريباً');
+}
+
+function toggleVoiceSearch() {
+  showToast('info', 'قريباً', 'ميزة البحث الصوتي قريباً');
+}
+
+// ==================== PRODUCT DETAIL ====================
+function showProductDetail(productId) {
+  const product = productsData.find(p => p.id === productId);
+  if (!product) return;
+
+  currentProduct = product;
+  addToRecentlyViewed(product);
+
+  const minPrice = Math.min(...product.stores.map(s => s.price));
+  const maxPrice = Math.max(...product.stores.map(s => s.price));
+  const savings = maxPrice - minPrice;
+  const isFav = favorites.includes(product.id);
+
+  const body = document.getElementById('productDetailBody');
+  body.innerHTML = `
+    <div style="text-align:center;margin-bottom:20px">
+      <div style="font-size:80px;margin-bottom:12px">${product.icon}</div>
+      <h2 style="font-size:20px;font-weight:800;margin-bottom:8px">${product.name}</h2>
+      <div style="color:var(--primary);font-weight:700;font-size:14px"><i class="fas fa-check-circle"></i> ${product.brand}</div>
+      <div class="product-rating" style="justify-content:center;margin-top:8px">
+        <span class="stars">${'★'.repeat(Math.floor(product.rating))}${'☆'.repeat(5 - Math.floor(product.rating))}</span>
+        <span>${product.rating} (${product.reviews} تقييم)</span>
+      </div>
+    </div>
+    ${savings > 0 ? `<div class="savings-badge" style="width:100%;justify-content:center;margin-bottom:16px"><i class="fas fa-tag"></i> وفّر حتى ${savings.toLocaleString()} ج.م</div>` : ''}
+    <h3 style="font-size:16px;font-weight:700;margin-bottom:12px"><i class="fas fa-store"></i> مقارنة الأسعار</h3>
+    <div class="price-comparison" style="margin-bottom:16px">
+      ${product.stores.map(s => `
+        <div class="price-row ${s.price === minPrice ? 'best-price' : ''}">
+          <div class="store-info">
+            <div class="store-logo">🏪</div>
+            <div>
+              <div class="store-name">${s.name}</div>
+              <div class="store-location"><i class="fas fa-map-marker-alt"></i> ${s.location}</div>
+            </div>
+          </div>
+          <div class="price-tag">
+            <span class="price-value" style="font-size:18px">${s.price.toLocaleString()}</span>
+            <span class="price-currency">ج.م</span>
+            ${s.price === minPrice ? '<span class="best-price-badge">الأفضل</span>' : ''}
+          </div>
+        </div>
+      `).join('')}
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:16px">
+      <button type="button" class="btn btn-primary btn-full" onclick="addToCart(${product.id})"><i class="fas fa-cart-plus"></i> أضف للسلة</button>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button type="button" class="btn btn-secondary" style="flex:1" onclick="toggleFavorite(${product.id})"><i class="fas ${isFav ? 'fa-heart' : 'fa-heart'}"></i> ${isFav ? 'إزالة من المفضلة' : 'أضف للمفضلة'}</button>
+      <button type="button" class="btn btn-secondary" style="flex:1" onclick="toggleCompare(${product.id})"><i class="fas fa-balance-scale"></i> قارن</button>
+    </div>
+    <div style="margin-top:16px;display:flex;gap:8px">
+      <button type="button" class="btn btn-text" style="flex:1;background:var(--bg-secondary)" onclick="showPriceAlert(${product.id})"><i class="fas fa-bell"></i> تنبيه السعر</button>
+      <button type="button" class="btn btn-text" style="flex:1;background:var(--bg-secondary)" onclick="showPriceHistory(${product.id})"><i class="fas fa-chart-line"></i> تاريخ السعر</button>
+    </div>
+  `;
+
+  openModal('productDetailModal');
+}
+
+function shareCurrentProduct() {
+  if (!currentProduct) return;
+  const shareOptions = document.getElementById('shareOptions');
+  shareOptions.innerHTML = `
+    <button class="share-option" onclick="shareVia('whatsapp')">
+      <i class="fab fa-whatsapp" style="background:#25d366"></i>
+      <span>واتساب</span>
+    </button>
+    <button class="share-option" onclick="shareVia('facebook')">
+      <i class="fab fa-facebook-f" style="background:#1877f2"></i>
+      <span>فيسبوك</span>
+    </button>
+    <button class="share-option" onclick="shareVia('twitter')">
+      <i class="fab fa-twitter" style="background:#1da1f2"></i>
+      <span>تويتر</span>
+    </button>
+    <button class="share-option" onclick="shareVia('copy')">
+      <i class="fas fa-link" style="background:var(--primary)"></i>
+      <span>نسخ الرابط</span>
+    </button>
+  `;
+  openModal('shareModal');
+}
+
+function shareVia(platform) {
+  if (platform === 'copy') {
+    showToast('success', 'تم!', 'تم نسخ الرابط');
+  } else {
+    showToast('info', 'مشاركة', 'جاري فتح ' + platform);
+  }
+  closeModal('shareModal');
+}
+
+// ==================== CONTACT ====================
+function showContactModal(productId, storeName) {
+  const product = productsData.find(p => p.id === productId);
+  if (!product) return;
+  const store = product.stores.find(s => s.name === storeName) || product.stores[0];
+  currentStore = store;
+
+  document.getElementById('contactStoreInfo').innerHTML = `
+    <div class="store-detail-icon">🏪</div>
+    <div class="store-detail-info">
+      <h3>${store.name}</h3>
+      <p><i class="fas fa-map-marker-alt"></i> ${store.location}</p>
+    </div>
+  `;
+
+  document.getElementById('contactButtons').innerHTML = `
+    <button type="button" class="contact-btn" style="background:#25d366" onclick="contactStore('whatsapp')"><i class="fab fa-whatsapp"></i> واتساب</button>
+    <button type="button" class="contact-btn" style="background:var(--primary)" onclick="contactStore('phone')"><i class="fas fa-phone"></i> اتصال</button>
+    <button type="button" class="contact-btn" style="background:var(--accent)" onclick="showMapModal()"><i class="fas fa-map-marker-alt"></i> الموقع على الخريطة</button>
+  `;
+
+  openModal('contactModal');
+}
+
+function contactStore(type) {
+  if (!currentStore) return;
+  if (type === 'whatsapp' && currentStore.whatsapp) {
+    window.open('https://wa.me/' + currentStore.whatsapp, '_blank');
+  } else if (type === 'phone' && currentStore.phone) {
+    window.location.href = 'tel:' + currentStore.phone;
+  } else {
+    showToast('info', 'عذراً', 'رقم التواصل غير متاح');
+  }
+}
+
+function showMapModal() {
+  if (!currentStore) return;
+  document.getElementById('mapStoreInfo').innerHTML = `
+    <div class="store-detail-icon">🏪</div>
+    <div class="store-detail-info">
+      <h3>${currentStore.name}</h3>
+      <p><i class="fas fa-map-marker-alt"></i> ${currentStore.location}</p>
+    </div>
+  `;
+  openModal('mapModal');
+}
+
+// ==================== PRICE ALERT ====================
+function showPriceAlert(productId) {
+  if (isGuest) {
+    showToast('warning', 'تنبيه', 'سجل دخول لتفعيل تنبيهات الأسعار');
+    return;
+  }
+  const product = productsData.find(p => p.id === productId);
+  if (!product) return;
+  currentProduct = product;
+  const minPrice = Math.min(...product.stores.map(s => s.price));
+
+  document.getElementById('alertProductName').textContent = product.name;
+  document.getElementById('currentProductPrice').textContent = minPrice.toLocaleString();
+  document.getElementById('targetPrice').value = Math.floor(minPrice * 0.9);
+  if (currentUser) document.getElementById('alertPhone').value = currentUser.phone || '';
+
+  openModal('priceAlertModal');
+}
+
+function savePriceAlert() {
+  const target = document.getElementById('targetPrice').value;
+  const phone = document.getElementById('alertPhone').value;
+
+  if (!target || !phone) {
+    showToast('error', 'خطأ', 'يرجى ملء جميع الحقول');
+    return;
+  }
+
+  priceAlerts.push({
+    productId: currentProduct.id,
+    productName: currentProduct.name,
+    targetPrice: parseInt(target),
+    phone: phone,
+    date: new Date().toISOString()
+  });
+
+  localStorage.setItem('sa3ry_alerts', JSON.stringify(priceAlerts));
+  updateProfileStats();
+  closeModal('priceAlertModal');
+  showToast('success', 'تم!', 'تم تفعيل تنبيه السعر');
+}
+
+// ==================== PRICE HISTORY ====================
+function showPriceHistory(productId) {
+  const product = productsData.find(p => p.id === productId);
+  if (!product) return;
+  const minPrice = Math.min(...product.stores.map(s => s.price));
+  const maxPrice = Math.max(...product.stores.map(s => s.price));
+  const avgPrice = Math.round(product.stores.reduce((a, s) => a + s.price, 0) / product.stores.length);
+
+  document.getElementById('priceStats').innerHTML = `
+    <div class="stat-card"><div class="stat-value">${minPrice.toLocaleString()}</div><div class="stat-label">أقل سعر</div></div>
+    <div class="stat-card"><div class="stat-value">${avgPrice.toLocaleString()}</div><div class="stat-label">متوسط السعر</div></div>
+    <div class="stat-card"><div class="stat-value">${maxPrice.toLocaleString()}</div><div class="stat-label">أعلى سعر</div></div>
+  `;
+
+  document.getElementById('priceTrend').innerHTML = `
+    <i class="fas fa-arrow-down"></i> السعر انخفض ${Math.round((maxPrice - minPrice) / maxPrice * 100)}% عن أعلى سعر مسجل
+  `;
+
+  openModal('priceHistoryModal');
+}
+
+// ==================== FAVORITES ====================
+function toggleFavorite(productId) {
+  const idx = favorites.indexOf(productId);
+  if (idx > -1) {
+    favorites.splice(idx, 1);
+    showToast('info', 'تم', 'تم إزالة المنتج من المفضلة');
+  } else {
+    favorites.push(productId);
+    showToast('success', 'تم!', 'تم إضافة المنتج للمفضلة');
+  }
+  localStorage.setItem('sa3ry_favorites', JSON.stringify(favorites));
+  renderProducts();
+  updateProfileStats();
+}
+
+function showFavorites() {
+  closeModal('profileModal');
+  const body = document.getElementById('favoritesBody');
+  if (favorites.length === 0) {
+    body.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">❤️</div>
+        <div class="empty-title">لا توجد مفضلات</div>
+        <div class="empty-desc">أضف منتجات للمفضلة لتظهر هنا</div>
+      </div>
+    `;
+  } else {
+    body.innerHTML = favorites.map(fid => {
+      const p = productsData.find(prod => prod.id === fid);
+      if (!p) return '';
+      const minPrice = Math.min(...p.stores.map(s => s.price));
+      return `
+        <div class="fav-item" onclick="showProductDetail(${p.id})">
+          <div class="fav-item-image">${p.icon}</div>
+          <div class="fav-item-info">
+            <div class="fav-item-name">${p.name}</div>
+            <div class="fav-item-price">${minPrice.toLocaleString()} ج.م</div>
+          </div>
+          <button class="fav-item-remove" onclick="event.stopPropagation();toggleFavorite(${p.id})"><i class="fas fa-trash"></i></button>
+        </div>
+      `;
+    }).join('');
+  }
+  openModal('favoritesModal');
+}
+
+// ==================== COMPARE ====================
+function toggleCompare(productId) {
+  const idx = compareList.indexOf(productId);
+  if (idx > -1) {
+    compareList.splice(idx, 1);
+  } else {
+    if (compareList.length >= 3) {
+      showToast('warning', 'تنبيه', 'يمكن مقارنة 3 منتجات فقط');
+      return;
+    }
+    compareList.push(productId);
+  }
+  updateCompareBar();
+  renderProducts();
+}
+
+function updateCompareBar() {
+  const bar = document.getElementById('compareBar');
+  const count = document.getElementById('compareCount');
+  const items = document.getElementById('compareItems');
+
+  count.textContent = compareList.length;
+
+  if (compareList.length === 0) {
+    bar.classList.remove('active');
+    return;
+  }
+
+  bar.classList.add('active');
+  items.innerHTML = compareList.map(cid => {
+    const p = productsData.find(prod => prod.id === cid);
+    if (!p) return '';
+    return `
+      <div class="compare-item">
+        <button class="compare-item-remove" onclick="toggleCompare(${p.id})"><i class="fas fa-times"></i></button>
+        <div class="compare-item-icon">${p.icon}</div>
+        <div class="compare-item-name">${p.name}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function clearCompare() {
+  compareList = [];
+  updateCompareBar();
+  renderProducts();
+}
+
+function openComparePage() {
+  if (compareList.length < 2) {
+    showToast('warning', 'تنبيه', 'اختر منتجين على الأقل للمقارنة');
+    return;
+  }
+
+  const products = compareList.map(cid => productsData.find(p => p.id === cid)).filter(Boolean);
+  const body = document.getElementById('comparePageBody');
+
+  body.innerHTML = `
+    <table class="compare-table">
+      <tr><th>المنتج</th>${products.map(p => `<th>${p.icon}<br>${p.name}</th>`).join('')}</tr>
+      <tr><td>العلامة التجارية</td>${products.map(p => `<td>${p.brand}</td>`).join('')}</tr>
+      <tr><td>التقييم</td>${products.map(p => `<td>${p.rating} ★</td>`).join('')}</tr>
+      <tr><td>أقل سعر</td>${products.map(p => {
+        const minP = Math.min(...p.stores.map(s => s.price));
+        const winner = products.every(other => {
+          if (other === p) return true;
+          return minP <= Math.min(...other.stores.map(s => s.price));
+        });
+        return `<td class="${winner ? 'compare-winner' : ''}">${minP.toLocaleString()} ج.م</td>`;
+      }).join('')}</tr>
+      <tr><td>أعلى سعر</td>${products.map(p => `<td>${Math.max(...p.stores.map(s => s.price)).toLocaleString()} ج.م</td>`).join('')}</tr>
+      <tr><td>عدد المتاجر</td>${products.map(p => `<td>${p.stores.length} متاجر</td>`).join('')}</tr>
+      <tr><td>الإجراء</td>${products.map(p => `<td><button class="btn btn-primary" style="font-size:12px;padding:8px" onclick="addToCart(${p.id});closeModal('comparePageModal')">أضف للسلة</button></td>`).join('')}</tr>
+    </table>
+  `;
+
+  closeModal('productDetailModal');
+  openModal('comparePageModal');
+}
+
+// ==================== CART ====================
+function addToCart(productId) {
+  const existing = cart.find(item => item.id === productId);
+  if (existing) {
+    existing.qty++;
+  } else {
+    const product = productsData.find(p => p.id === productId);
+    if (!product) return;
+    const bestStore = product.stores.reduce((a, b) => a.price < b.price ? a : b);
+    cart.push({id: productId, qty: 1, store: bestStore.name, price: bestStore.price});
+  }
+  localStorage.setItem('sa3ry_cart', JSON.stringify(cart));
+  updateCartBadge();
+  showToast('success', 'تم!', 'تم إضافة المنتج للسلة');
+}
+
+function removeFromCart(productId) {
+  cart = cart.filter(item => item.id !== productId);
+  localStorage.setItem('sa3ry_cart', JSON.stringify(cart));
+  updateCartBadge();
+  renderCart();
+}
+
+function updateCartQty(productId, delta) {
+  const item = cart.find(i => i.id === productId);
+  if (!item) return;
+  item.qty += delta;
+  if (item.qty <= 0) {
+    removeFromCart(productId);
+    return;
+  }
+  localStorage.setItem('sa3ry_cart', JSON.stringify(cart));
+  renderCart();
+  updateCartBadge();
+}
+
+function updateCartBadge() {
+  const badge = document.getElementById('cartBadge');
+  const total = cart.reduce((a, item) => a + item.qty, 0);
+  if (badge) {
+    badge.textContent = total;
+    badge.style.display = total > 0 ? 'flex' : 'none';
+  }
+}
+
+function renderCart() {
+  const list = document.getElementById('cartItemsList');
+  const summary = document.getElementById('cartSummary');
+
+  if (cart.length === 0) {
+    list.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">🛒</div>
+        <div class="empty-title">السلة فارغة</div>
+        <div class="empty-desc">أضف منتجات للسلة لتظهر هنا</div>
+      </div>
+    `;
+    summary.style.display = 'none';
+    return;
+  }
+
+  summary.style.display = 'block';
+  let total = 0;
+
+  list.innerHTML = cart.map(item => {
+    const product = productsData.find(p => p.id === item.id);
+    if (!product) return '';
+    const itemTotal = item.price * item.qty;
+    total += itemTotal;
+    return `
+      <div class="cart-item">
+        <div class="cart-item-image">${product.icon}</div>
+        <div class="cart-item-info">
+          <div class="cart-item-name">${product.name}</div>
+          <div class="cart-item-store">${item.store}</div>
+          <div class="cart-item-price">${itemTotal.toLocaleString()} ج.م</div>
+          <div class="cart-item-actions">
+            <button class="qty-btn" onclick="updateCartQty(${item.id}, -1)">-</button>
+            <span class="qty-value">${item.qty}</span>
+            <button class="qty-btn" onclick="updateCartQty(${item.id}, 1)">+</button>
+            <button class="btn btn-text" style="color:var(--danger);margin-right:auto" onclick="removeFromCart(${item.id})"><i class="fas fa-trash"></i></button>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  summary.innerHTML = `
+    <div class="cart-total-row"><span>المجموع الفرعي</span><span>${total.toLocaleString()} ج.م</span></div>
+    <div class="cart-total-row"><span>الشحن</span><span>مجاني</span></div>
+    <div class="cart-total-final"><span>الإجمالي</span><span>${total.toLocaleString()} ج.م</span></div>
+    <button type="button" class="btn btn-success btn-full" style="margin-top:16px" onclick="checkout()"><i class="fas fa-credit-card"></i> إتمام الشراء</button>
+  `;
+}
+
+function checkout() {
+  showToast('success', 'تم!', 'تم إرسال طلبك بنجاح');
+  cart = [];
+  localStorage.setItem('sa3ry_cart', JSON.stringify(cart));
+  updateCartBadge();
+  renderCart();
+  closeModal('cartModal');
+}
+
+// ==================== NOTIFICATIONS ====================
+function showNotifications() {
+  const list = document.getElementById('notificationsList');
+  list.innerHTML = notificationsData.map(n => `
+    <div class="notification-item ${n.unread ? 'unread' : ''}" onclick="markNotificationRead(${n.id})">
+      <div class="notification-icon ${n.type}"><i class="fas ${n.type === 'price-drop' ? 'fa-tag' : n.type === 'new-product' ? 'fa-box' : n.type === 'review' ? 'fa-star' : n.type === 'order' ? 'fa-shopping-bag' : 'fa-cog'}"></i></div>
+      <div class="notification-content">
+        <div class="notification-title">${n.title}</div>
+        <div class="notification-desc">${n.desc}</div>
+        <div class="notification-time"><i class="far fa-clock"></i> ${n.time}</div>
+      </div>
+    </div>
+  `).join('');
+  openModal('notificationsModal');
+}
+
+function markNotificationRead(id) {
+  const notif = notificationsData.find(n => n.id === id);
+  if (notif) notif.unread = false;
+  updateNotificationsBadge();
+  showNotifications();
+}
+
+function updateNotificationsBadge() {
+  const badge = document.getElementById('notifBadge');
+  const unread = notificationsData.filter(n => n.unread).length;
+  badge.textContent = unread;
+  badge.style.display = unread > 0 ? 'flex' : 'none';
+}
+
+// ==================== PROFILE ====================
+function showProfile() {
+  if (isGuest) {
+    document.getElementById('profileName').textContent = 'زائر';
+    document.getElementById('profileEmail').textContent = 'سجل دخول للمزيد';
+    document.getElementById('profileAvatar').textContent = '👤';
+  } else if (currentUser) {
+    document.getElementById('profileName').textContent = currentUser.name || 'مستخدم';
+    document.getElementById('profileEmail').textContent = currentUser.email || currentUser.phone || '';
+    
+    // Handle avatar - if it's a URL show image, if emoji show text
+    const avatarEl = document.getElementById('profileAvatar');
+    const avatar = currentUser.avatar || '';
+    if (avatar.startsWith('http')) {
+      avatarEl.innerHTML = `<img src="${avatar}" style="width:100%;height:100%;border-radius:50%;object-fit:cover" onerror="this.parentElement.textContent='👤'">`;
+    } else {
+      avatarEl.textContent = avatar || '👤';
+    }
+  }
+
+  updateProfileStats();
+
+  const menu = document.getElementById('profileMenu');
+  menu.innerHTML = `
+    <div class="profile-menu-item" onclick="showFavorites();closeModal('profileModal')">
+      <div class="profile-menu-icon" style="background:#fce4ec;color:#c2185b"><i class="fas fa-heart"></i></div>
+      <div class="profile-menu-text"><div class="profile-menu-title">المفضلة</div><div class="profile-menu-desc">${favorites.length} منتج</div></div>
+      <i class="fas fa-chevron-left" style="color:var(--text-tertiary)"></i>
+    </div>
+    <div class="profile-menu-item" onclick="showAlerts();closeModal('profileModal')">
+      <div class="profile-menu-icon" style="background:#fff3e0;color:var(--accent)"><i class="fas fa-bell"></i></div>
+      <div class="profile-menu-text"><div class="profile-menu-title">تنبيهات الأسعار</div><div class="profile-menu-desc">${priceAlerts.length} تنبيه نشط</div></div>
+      <i class="fas fa-chevron-left" style="color:var(--text-tertiary)"></i>
+    </div>
+    <div class="profile-menu-item" onclick="showOrders();closeModal('profileModal')">
+      <div class="profile-menu-icon" style="background:#e8f5e9;color:var(--secondary)"><i class="fas fa-shopping-bag"></i></div>
+      <div class="profile-menu-text"><div class="profile-menu-title">طلباتي</div><div class="profile-menu-desc">عرض سجل الطلبات</div></div>
+      <i class="fas fa-chevron-left" style="color:var(--text-tertiary)"></i>
+    </div>
+    <div class="profile-menu-item" onclick="showSettingsModal()">
+      <div class="profile-menu-icon" style="background:#e3f2fd;color:var(--primary)"><i class="fas fa-cog"></i></div>
+      <div class="profile-menu-text"><div class="profile-menu-title">الإعدادات</div><div class="profile-menu-desc">اللغة، الإشعارات، الوضع الليلي، تسجيل الخروج</div></div>
+      <i class="fas fa-chevron-left" style="color:var(--text-tertiary)"></i>
+    </div>
+  `;
+
+  openModal('profileModal');
+}
+
+function updateProfileStats() {
+  document.getElementById('statFavorites').textContent = favorites.length;
+  document.getElementById('statAlerts').textContent = priceAlerts.length;
+  document.getElementById('statPoints').textContent = Math.floor(favorites.length * 10 + cart.length * 5);
+}
+
+function showAlerts() {
+  showToast('info', 'تنبيهات', 'لديك ' + priceAlerts.length + ' تنبيه نشط');
+}
+
+function showPoints() {
+  showToast('info', 'النقاط', 'نقاطك: ' + (favorites.length * 10 + cart.length * 5));
+}
+
+function showOrders() {
+  showToast('info', 'طلباتي', 'لا توجد طلبات حالياً');
+}
+
+function showSettingsModal() {
+  closeModal('profileModal');
+  openModal('settingsModal');
+}
+
+function showSettings() {
+  showSettingsModal();
+}
+
+function toggleDarkModeSettings() {
+  toggleDarkMode();
+}
+
+function toggleNotifications() {
+  if ('Notification' in window) {
+    Notification.requestPermission().then(permission => {
+      if (permission === 'granted') {
+        showToast('success', 'تم!', 'تم تفعيل الإشعارات');
+      } else {
+        showToast('info', 'تنبيه', 'تم إلغاء الإشعارات');
+      }
+    });
+  } else {
+    showToast('error', 'خطأ', 'المتصفح لا يدعم الإشعارات');
+  }
+}
+
+function changeLanguage() {
+  showToast('info', 'اللغة', 'اللغة العربية فقط حالياً');
+}
+
+function clearCache() {
+  if (confirm('هل أنت متأكد من مسح جميع البيانات المحلية؟')) {
+    localStorage.clear();
+    showToast('success', 'تم!', 'تم مسح الذاكرة المؤقتة');
+    setTimeout(() => location.reload(), 1500);
+  }
+}
+
+function showAbout() {
+  showToast('info', 'عن التطبيق', 'سعري v1.0 - مقارنة أسعار الإلكترونيات في مصر');
+}
+
+// ==================== RECENTLY VIEWED ====================
+function addToRecentlyViewed(product) {
+  recentlyViewed = recentlyViewed.filter(p => p.id !== product.id);
+  recentlyViewed.unshift({id: product.id, name: product.name, icon: product.icon, price: Math.min(...product.stores.map(s => s.price))});
+  if (recentlyViewed.length > 10) recentlyViewed.pop();
+  localStorage.setItem('sa3ry_recent', JSON.stringify(recentlyViewed));
+  renderRecentlyViewed();
+}
+
+function renderRecentlyViewed() {
+  const section = document.getElementById('recentlyViewedSection');
+  const list = document.getElementById('recentlyViewedList');
+  if (!section || !list) return;
+
+  if (recentlyViewed.length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+
+  section.style.display = 'block';
+  list.innerHTML = recentlyViewed.map(p => `
+    <div class="recent-item" onclick="showProductDetail(${p.id})">
+      <div class="recent-item-image">${p.icon}</div>
+      <div class="recent-item-name">${p.name}</div>
+    </div>
+  `).join('');
+}
+
+// ==================== NAVIGATION ====================
+function switchTab(tab, el) {
+  document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+  if (el) el.classList.add('active');
+
+  if (tab === 'home') {
+    document.getElementById('categoriesSection').style.display = 'block';
+    document.getElementById('filtersSection').style.display = 'block';
+    document.getElementById('priceRangeSection').style.display = 'block';
+    document.getElementById('sortBar').style.display = 'flex';
+    document.getElementById('productsSection').style.display = 'block';
+    document.getElementById('recentlyViewedSection').style.display = recentlyViewed.length > 0 ? 'block' : 'none';
+    renderProducts();
+  } else if (tab === 'categories') {
+    document.getElementById('categoriesSection').style.display = 'block';
+    document.getElementById('filtersSection').style.display = 'block';
+    document.getElementById('priceRangeSection').style.display = 'block';
+    document.getElementById('sortBar').style.display = 'flex';
+    document.getElementById('productsSection').style.display = 'block';
+    document.getElementById('recentlyViewedSection').style.display = 'none';
+  } else if (tab === 'favorites') {
+    showFavorites();
+  } else if (tab === 'cart') {
+    renderCart();
+    openModal('cartModal');
+  } else if (tab === 'profile') {
+    showProfile();
+  }
+}
+
+// ==================== DARK MODE ====================
+function toggleDarkMode() {
+  darkMode = !darkMode;
+  document.body.classList.toggle('dark-mode', darkMode);
+  localStorage.setItem('sa3ry_dark', darkMode);
+  const icon = document.getElementById('darkModeIcon');
+  if (icon) icon.className = darkMode ? 'fas fa-sun' : 'fas fa-moon';
+  showToast('info', darkMode ? 'الوضع الليلي' : 'الوضع النهاري', 'تم تغيير الوضع');
+}
+
+// ==================== MODALS ====================
+function openModal(id) {
+  const modal = document.getElementById(id);
+  if (!modal) return;
+  modal.style.display = 'flex';
+  setTimeout(() => modal.classList.add('active'), 10);
+  document.body.style.overflow = 'hidden';
+}
+
+function closeModal(id) {
+  const modal = document.getElementById(id);
+  if (!modal) return;
+  modal.classList.remove('active');
+  setTimeout(() => {
+    modal.style.display = 'none';
+    document.body.style.overflow = '';
+  }, 300);
+}
+
+// Close modal on overlay click
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) {
+      const id = overlay.id;
+      closeModal(id);
+    }
+  });
+});
+
+// ==================== TOAST ====================
+function showToast(type, title, message) {
+  const toast = document.getElementById('toast');
+  const icon = document.getElementById('toastIcon');
+  const titleEl = document.getElementById('toastTitle');
+  const msgEl = document.getElementById('toastMessage');
+
+  toast.className = 'toast toast-' + type;
+  icon.innerHTML = type === 'success' ? '<i class="fas fa-check-circle"></i>' : 
+                   type === 'error' ? '<i class="fas fa-times-circle"></i>' : 
+                   type === 'warning' ? '<i class="fas fa-exclamation-triangle"></i>' : 
+                   '<i class="fas fa-info-circle"></i>';
+  titleEl.textContent = title;
+  msgEl.textContent = message;
+
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 3000);
+}
+
+// ==================== VOICE SEARCH ====================
+let isListening = false;
+let recognition = null;
+
+function toggleVoiceSearch() {
+  if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+    showToast('error', 'خطأ', 'المتصفح ده مش بيدعم البحث الصوتي');
+    return;
+  }
+
+  if (isListening) {
+    stopVoiceSearch();
+    return;
+  }
+
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SpeechRecognition();
+  recognition.lang = 'ar-EG';
+  recognition.continuous = false;
+  recognition.interimResults = true;
+
+  const voiceBtn = document.getElementById('voiceBtn');
+
+  recognition.onstart = () => {
+    isListening = true;
+    voiceBtn.innerHTML = '<i class="fas fa-microphone-slash" style="color:red"></i>';
+    voiceBtn.style.background = 'rgba(255,0,0,0.1)';
+    showToast('info', '🎤 جاري الاستماع...', 'تكلم دلوقتي');
+  };
+
+  recognition.onresult = (e) => {
+    const transcript = Array.from(e.results).map(r => r[0].transcript).join('');
+    document.getElementById('searchInput').value = transcript;
+    if (e.results[0].isFinal) {
+      performSearch();
+      stopVoiceSearch();
+    }
+  };
+
+  recognition.onerror = (e) => {
+    stopVoiceSearch();
+    if (e.error === 'not-allowed') {
+      showToast('error', 'خطأ', 'اسمح للتطبيق بالوصول للميكرفون');
+    } else {
+      showToast('error', 'خطأ', 'مش قادر يسمعك، حاول تاني');
+    }
+  };
+
+  recognition.onend = () => stopVoiceSearch();
+  recognition.start();
+}
+
+function stopVoiceSearch() {
+  isListening = false;
+  if (recognition) recognition.stop();
+  const voiceBtn = document.getElementById('voiceBtn');
+  if (voiceBtn) {
+    voiceBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+    voiceBtn.style.background = '';
+  }
+}
+
+// ==================== IMAGE SEARCH (CAMERA) ====================
+function openImageSearch() {
+  openModal('imageSearchModal');
+}
+
+function startImageSearchCamera() {
+  const video = document.getElementById('imageSearchVideo');
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+    .then(stream => {
+      video.srcObject = stream;
+      video.play();
+      document.getElementById('imageSearchCaptureBtn').style.display = 'block';
+      document.getElementById('imageSearchPlaceholder').style.display = 'none';
+    })
+    .catch(() => showToast('error', 'خطأ', 'اسمح للتطبيق بالوصول للكاميرا'));
+}
+
+function captureImageSearch() {
+  const video = document.getElementById('imageSearchVideo');
+  const canvas = document.createElement('canvas');
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  canvas.getContext('2d').drawImage(video, 0, 0);
+  
+  // Stop camera
+  if (video.srcObject) video.srcObject.getTracks().forEach(t => t.stop());
+
+  canvas.toBlob(async (blob) => {
+    showLoading('جاري تحليل الصورة...');
+    closeModal('imageSearchModal');
+    
+    // Upload to Cloudinary
+    const formData = new FormData();
+    formData.append('file', blob, 'search.jpg');
+    formData.append('upload_preset', CLOUDINARY_PRESET);
+    
+    try {
+      const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`, {
+        method: 'POST', body: formData
+      });
+      const data = await res.json();
+      hideLoading();
+      
+      // Search by image tags from Cloudinary
+      if (data.tags && data.tags.length > 0) {
+        const searchTerm = data.tags[0];
+        document.getElementById('searchInput').value = searchTerm;
+        performSearch();
+        showToast('success', 'تم!', 'بيبحث عن: ' + searchTerm);
+      } else {
+        showToast('info', 'البحث بالصورة', 'جرب تكتب اسم المنتج يدوياً');
+      }
+    } catch(e) {
+      hideLoading();
+      showToast('error', 'خطأ', 'فشل تحليل الصورة');
+    }
+  }, 'image/jpeg');
+}
+
+function uploadImageSearch(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const img = document.getElementById('imageSearchPreview');
+    img.src = e.target.result;
+    img.style.display = 'block';
+    document.getElementById('imageSearchPlaceholder').style.display = 'none';
+    document.getElementById('imageSearchCaptureBtn').style.display = 'block';
+    document.getElementById('imageSearchCaptureBtn').onclick = () => {
+      // Search by filename
+      const name = file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
+      document.getElementById('searchInput').value = name;
+      performSearch();
+      closeModal('imageSearchModal');
+      showToast('info', 'البحث بالصورة', 'بيبحث عن: ' + name);
+    };
+  };
+  reader.readAsDataURL(file);
+}
+
+// ==================== GOOGLE PRICE SEARCH ====================
+const VERCEL_API = 'https://sa3ry-server.vercel.app/api/prices';
+
+async function searchRealPrices(productName) {
+  try {
+    const url = `${VERCEL_API}?q=${encodeURIComponent(productName)}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    return data.results || [];
+  } catch(e) {
+    console.error('Price search error:', e);
+    return [];
+  }
+}
+
+async function autoFillPrices() {
+  const name = document.getElementById('adminProductName').value.trim();
+  if (!name) {
+    showToast('error', 'خطأ', 'اكتب اسم المنتج الأول');
+    return;
+  }
+
+  showLoading('جاري البحث عن الأسعار...');
+
+  const results = await searchRealPrices(name);
+  hideLoading();
+
+  if (results.length === 0) {
+    showToast('error', 'للأسف', 'مش لاقي أسعار، ضيفها يدوياً');
+    return;
+  }
+
+  // Clear existing stores
+  document.getElementById('adminStores').innerHTML = '';
+
+  // Add found stores
+  results.forEach(r => {
+    addStoreField();
+    const stores = document.getElementById('adminStores');
+    const lastStore = stores.lastElementChild;
+    lastStore.querySelector('.store-name').value = r.store;
+    lastStore.querySelector('.store-price').value = r.price;
+    lastStore.querySelector('.store-location').value = 'مصر';
+  });
+
+  showToast('success', 'تم!', `لقينا ${results.length} محل بأسعار حقيقية! 🎉`);
+}
+async function importFromExcel(input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  showLoading('جاري قراءة ملف Excel...');
+
+  // Load SheetJS if not loaded
+  if (typeof XLSX === 'undefined') {
+    await new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+      s.onload = resolve;
+      s.onerror = reject;
+      document.head.appendChild(s);
+    });
+  }
+
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, { type: 'array' });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+
+      // Skip first 3 rows (title, subtitle, headers)
+      const dataRows = rows.slice(3).filter(row => row[0] && row[5] && row[6]);
+
+      if (dataRows.length === 0) {
+        hideLoading();
+        showToast('error', 'خطأ', 'مفيش بيانات في الملف');
+        return;
+      }
+
+      // Group rows by product name
+      const productsMap = {};
+      dataRows.forEach(row => {
+        const name = String(row[0]).trim();
+        const brand = String(row[1]).trim();
+        const category = String(row[2]).trim();
+        const description = String(row[3]).trim();
+        const rating = parseFloat(row[4]) || 4.5;
+        const storeName = String(row[5]).trim();
+        const price = parseInt(row[6]) || 0;
+        const location = String(row[7]).trim() || 'غير محدد';
+        const phone = String(row[8]).trim() || '';
+        const whatsapp = String(row[9]).trim() || '';
+        const link = String(row[10]).trim() || '';
+        const image = String(row[11]).trim() || '';
+        const available = String(row[12]).trim() !== 'لا';
+
+        if (!name || !storeName || !price) return;
+
+        const catMap = {
+          'موبايلات': 'phones', 'لابتوبات': 'laptops', 'تليفزيونات': 'tvs',
+          'تابلت': 'tablets', 'سماعات': 'accessories', 'كاميرات': 'cameras',
+          'أجهزة منزلية': 'appliances', 'إكسسوارات': 'accessories'
+        };
+
+        if (!productsMap[name]) {
+          productsMap[name] = { name, brand, category: catMap[category] || 'phones', description, rating, reviews: 0, image, stores: [] };
+        }
+
+        if (available) {
+          productsMap[name].stores.push({ name: storeName, price, location, phone, whatsapp, link });
+        }
+      });
+
+      const products = Object.values(productsMap).filter(p => p.stores.length > 0);
+
+      if (products.length === 0) {
+        hideLoading();
+        showToast('error', 'خطأ', 'مفيش منتجات صح في الملف');
+        return;
+      }
+
+      // Add all products to Firestore
+      let added = 0;
+      for (const product of products) {
+        try {
+          const id = await addProductToFirestore(product);
+          product.id = id;
+          productsData.unshift(product);
+          added++;
+        } catch(e) {
+          console.error('Error adding product:', product.name, e);
+        }
+      }
+
+      renderProducts();
+      renderAdminProducts();
+      hideLoading();
+      showToast('success', 'تم!', `تم إضافة ${added} منتج بنجاح! 🎉`);
+
+    } catch(e) {
+      hideLoading();
+      console.error(e);
+      showToast('error', 'خطأ', 'فشل قراءة الملف - تأكد إنه Excel صح');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ==================== PWA INSTALL ====================
+let deferredPrompt = null;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  // Show install button after 3 seconds
+  setTimeout(() => showInstallBanner(), 3000);
+});
+
+function showInstallBanner() {
+  if (!deferredPrompt) return;
+  const banner = document.getElementById('installBanner');
+  if (banner) banner.style.display = 'flex';
+}
+
+function installApp() {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  deferredPrompt.userChoice.then((result) => {
+    if (result.outcome === 'accepted') {
+      showToast('success', 'تم!', 'جاري تنزيل التطبيق 🎉');
+    }
+    deferredPrompt = null;
+    const banner = document.getElementById('installBanner');
+    if (banner) banner.style.display = 'none';
+  });
+}
+
+function dismissInstallBanner() {
+  const banner = document.getElementById('installBanner');
+  if (banner) banner.style.display = 'none';
+}
+
+window.addEventListener('appinstalled', () => {
+  showToast('success', 'تم التنزيل!', 'تم تنزيل سعري على جهازك 🎉');
+  deferredPrompt = null;
+});
+
+// ==================== LOADING ====================
+function showLoading(text) {
+  const overlay = document.getElementById('loadingOverlay');
+  const textEl = document.getElementById('loadingText');
+  if (textEl) textEl.textContent = text || 'جاري التحميل...';
+  if (overlay) overlay.classList.add('active');
+}
+
+function hideLoading() {
+  const overlay = document.getElementById('loadingOverlay');
+  if (overlay) overlay.classList.remove('active');
+}
+
+</script>
 </body>
 </html>
