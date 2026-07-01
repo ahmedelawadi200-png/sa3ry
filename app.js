@@ -2983,7 +2983,6 @@ if ('serviceWorker' in navigator) {
         }
       });
   });
-});
 
 // ==================== INDEXEDDB FOR OFFLINE PRODUCTS ====================
 const DB_NAME = 'sa3ryDB';
