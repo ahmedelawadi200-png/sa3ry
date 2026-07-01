@@ -52,35 +52,6 @@ async function initFirebase() {
   if (!loaded) {
     console.error('Firebase init error: all CDNs failed - running in demo mode');
     // Ensure app still loads even without Firebase
-    // Create stub objects so Firebase-dependent code doesn't crash
-    window.firebase = {
-      apps: [],
-      auth: () => ({
-        onAuthStateChanged: () => {},
-        signInWithEmailAndPassword: () => Promise.reject('offline'),
-        createUserWithEmailAndPassword: () => Promise.reject('offline'),
-        signInWithPopup: () => Promise.reject('offline'),
-        signInWithRedirect: () => Promise.reject('offline'),
-        signInWithPhoneNumber: () => Promise.reject('offline'),
-        sendPasswordResetEmail: () => Promise.reject('offline'),
-        signOut: () => Promise.resolve(),
-        languageCode: 'ar'
-      }),
-      firestore: () => ({
-        collection: () => ({
-          orderBy: () => ({ get: () => Promise.resolve({ empty: true, docs: [] }) }),
-          add: () => Promise.reject('offline'),
-          doc: () => ({ delete: () => Promise.reject('offline') })
-        }),
-        FieldValue: { serverTimestamp: () => Date.now() }
-      }),
-      initializeApp: () => {},
-      auth: { GoogleAuthProvider: function() {}, RecaptchaVerifier: function() {} }
-    };
-    auth = firebase.auth();
-    db = firebase.firestore();
-    googleProvider = new firebase.auth.GoogleAuthProvider();
-    console.log('✅ Firebase stubs created for demo mode');
     return;
   }
 
@@ -2968,21 +2939,87 @@ function hideLoading() {
 // Register Service Worker for PWA offline support
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    // Use external sw.js file instead of inline blob for better compatibility
-    navigator.serviceWorker.register('sw.js')
+    // Inline service worker as blob URL since we're a single HTML file
+    const swCode = `
+const CACHE_NAME = 'sa3ry-v1.2';
+const STATIC_ASSETS = [
+  'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
+  'https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800&display=swap'
+];
+
+self.addEventListener('install', (e) => {
+  e.waitUntil(
+    caches.open(CACHE_NAME).then(cache => {
+      return cache.addAll(STATIC_ASSETS).catch(() => {});
+    })
+  );
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (e) => {
+  e.waitUntil(
+    caches.keys().then(keys =>
+      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
+    )
+  );
+  self.clients.claim();
+});
+
+self.addEventListener('fetch', (e) => {
+  const url = e.request.url;
+  // Cache static assets (fonts, icons)
+  if (url.includes('googleapis.com') || url.includes('cdnjs.cloudflare.com') || url.includes('fontawesome')) {
+    e.respondWith(
+      caches.match(e.request).then(cached => {
+        return cached || fetch(e.request).then(res => {
+          if (res && res.status === 200) {
+            const clone = res.clone();
+            caches.open(CACHE_NAME).then(c => c.put(e.request, clone));
+          }
+          return res;
+        }).catch(() => cached);
+      })
+    );
+    return;
+  }
+  // For Firebase/API calls: network first, no cache
+  if (url.includes('firebase') || url.includes('firestore') || url.includes('googleapis.com/identitytoolkit') || url.includes('cloudinary')) {
+    e.respondWith(fetch(e.request).catch(() => new Response('{"error":"offline"}', {headers:{'Content-Type':'application/json'}})));
+    return;
+  }
+});
+
+self.addEventListener('push', (e) => {
+  const data = e.data ? e.data.json() : { title: 'سعري', body: 'إشعار جديد' };
+  e.waitUntil(
+    self.registration.showNotification(data.title || 'سعري', {
+      body: data.body || '',
+      icon: '/sa3ry/icon-192.png',
+      badge: '/sa3ry/icon-96.png',
+      dir: 'rtl',
+      lang: 'ar',
+      vibrate: [200, 100, 200],
+      data: data
+    })
+  );
+});
+
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  e.waitUntil(clients.openWindow('/sa3ry/'));
+});
+`;
+    const blob = new Blob([swCode], { type: 'application/javascript' });
+    const swUrl = URL.createObjectURL(blob);
+    navigator.serviceWorker.register(swUrl)
       .then(reg => {
         console.log('✅ SW registered');
         // Check for updates every 30 min
         setInterval(() => reg.update(), 30 * 60 * 1000);
       })
-      .catch(err => {
-        console.warn('SW registration failed:', err);
-        // Fallback: try inline blob if external fails (e.g., file:// protocol)
-        if (window.location.protocol === 'file:') {
-          console.warn('Running from file:// - SW disabled. Use a local server for PWA features.');
-        }
-      });
+      .catch(err => console.warn('SW registration failed:', err));
   });
+}
 
 // ==================== INDEXEDDB FOR OFFLINE PRODUCTS ====================
 const DB_NAME = 'sa3ryDB';
