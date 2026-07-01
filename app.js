@@ -3458,6 +3458,8 @@ window.handleSearchInput = function() {
 
 // Inject dynamic suggestions container
 document.addEventListener('DOMContentLoaded', () => {
+  initFirebase();
+
   setTimeout(() => {
     const sugg = document.getElementById('searchSuggestions');
     if (sugg && !document.getElementById('dynamicSuggestions')) {
@@ -3467,5 +3469,3 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }, 500);
 });
-
-console.log('✅ سعري v3 - جميع التحسينات مفعلة');
