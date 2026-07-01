@@ -1,0 +1,35 @@
+{
+  "name": "سعري - مقارنة أسعار الإلكترونيات",
+  "short_name": "سعري",
+  "description": "قارن أسعار الإلكترونيات في مصر",
+  "start_url": "/sa3ry/",
+  "display": "standalone",
+  "background_color": "#1a73e8",
+  "theme_color": "#1a73e8",
+  "orientation": "portrait",
+  "lang": "ar",
+  "dir": "rtl",
+  "icons": [
+    {
+      "src": "/sa3ry/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/sa3ry/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "categories": [
+    "shopping",
+    "utilities"
+  ],
+  "shortcuts": [
+    {
+      "name": "بحث سريع",
+      "short_name": "بحث",
+      "url": "/sa3ry/?action=search"
+    }
+  ]
+}
