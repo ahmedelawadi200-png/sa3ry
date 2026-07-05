@@ -1,0 +1,56 @@
+rules_version = '2';
+
+// ==================== SA3RY FIRESTORE SECURITY RULES ====================
+// Deploy with: firebase deploy --only firestore:rules
+//
+// SECURITY MODEL:
+// - Anyone (including signed-out users) can READ products - it's a public
+//   price-comparison catalog.
+// - Only a verified admin (a user whose UID has a document at /admins/{uid})
+//   can create, update, or delete products.
+// - This is the enforcement layer the client-side "isAdminUser" check in
+//   firebase.js cannot bypass, even from the browser DevTools console -
+//   any write from a non-admin UID is rejected by Firestore itself.
+// - The /admins collection can never be written by clients at all: admin
+//   grants must be made from the Firebase Console or a trusted backend
+//   (e.g. a Cloud Function with the Admin SDK), never from client code.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    // ---- Products: public catalog, admin-only writes ----
+    match /products/{productId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ---- Admins: never writable from the client. Manage via Console/Admin SDK only. ----
+    match /admins/{uid} {
+      allow read: if isSignedIn() && request.auth.uid == uid; // a user may check their own status
+      allow write: if false;
+    }
+
+    // ---- Reviews/comments: any signed-in user may write their own review,
+    //      anyone may read, only the author or an admin may edit/delete it. ----
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
+      allow update, delete: if isSignedIn() &&
+        (resource.data.uid == request.auth.uid || isAdmin());
+    }
+
+    // ---- Everything else: locked down by default. ----
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
