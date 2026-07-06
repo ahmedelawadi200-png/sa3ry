@@ -1,0 +1,8 @@
+/* ==================== RESPONSIVE.CSS ====================
+   Placeholder for responsive breakpoints.
+   NOTE: the original project had NO @media queries at all - it's a
+   fixed-width mobile app-shell design (max-width: 430px, centered).
+   Per the "don't change the design" requirement, no new breakpoints were
+   added here. This file is wired up and ready for real responsive rules
+   in a later phase if/when that's requested. */
+
