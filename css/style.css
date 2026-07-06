@@ -3,10 +3,11 @@
    Visual design is UNCHANGED from the original inline <style> block -
    this is a pure file-split, not a redesign. */
 
-<style>
-
 :root{--primary:#1a73e8;--primary-dark:#1557b0;--primary-light:#e8f0fe;--secondary:#00c853;--accent:#ff6d00;--danger:#e53935;--warning:#ff9800;--bg:#f0f2f5;--bg-secondary:#e8eaed;--bg-card:#fff;--bg-tertiary:#e0e0e0;--card:#fff;--text:#1a1a2e;--text-primary:#1a1a2e;--text-secondary:#5f6368;--text-tertiary:#9aa0a6;--border:#dadce0;--border-light:#e8eaed;--shadow-sm:0 1px 3px rgba(0,0,0,0.08);--shadow:0 2px 8px rgba(0,0,0,0.1);--shadow-md:0 4px 16px rgba(0,0,0,0.12);--shadow-lg:0 8px 32px rgba(0,0,0,0.15);--radius:12px;--radius-sm:8px;--radius-lg:16px;--radius-xl:24px;--transition:all 0.3s ease;--nav-height:70px;--success:#00c853}
-body.dark-mode{--bg:#121212;--bg-secondary:#1e1e1e;--card:#1e1e1e;--text:#fff;--text-secondary:#b0b0b0;--text-tertiary:#808080;--border:#333;--shadow-sm:0 1px 3px rgba(0,0,0,0.3);--shadow:0 2px 8px rgba(0,0,0,0.4)}
+/* BUGFIX: dark mode used to only override --card, leaving --bg-card (used
+   by several other components, e.g. category cards) stuck at white while
+   the rest of the page went dark - a half-dark, half-light mismatch. */
+body.dark-mode{--bg:#121212;--bg-secondary:#1e1e1e;--bg-card:#1e1e1e;--card:#1e1e1e;--text:#fff;--text-secondary:#b0b0b0;--text-tertiary:#808080;--border:#333;--shadow-sm:0 1px 3px rgba(0,0,0,0.3);--shadow:0 2px 8px rgba(0,0,0,0.4)}
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 body{font-family:'Cairo',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;line-height:1.6}
 .app-container{max-width:430px;margin:0 auto;background:var(--bg);min-height:100vh;position:relative;box-shadow:0 0 40px rgba(0,0,0,0.1);padding-bottom:calc(var(--nav-height) + 16px)}
@@ -340,5 +341,3 @@ main{padding:0 0 20px}
 .error-message.show{display:flex}
 .success-message{color:var(--secondary);font-size:12px;margin-top:4px;display:none;align-items:center;gap:4px;font-weight:600}
 .success-message.show{display:flex}
-
-</style>

@@ -880,7 +880,14 @@
 
 
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js" async></script>
+  <!-- BUGFIX: this used to have `async`, which meant it loaded in the
+       background independent of the rest of the page. The fallback check
+       below (which installs a disabled stub if the library "isn't loaded
+       yet") ran before this had any real chance to finish downloading, so
+       the QR scanner was disabled almost every time even when the real
+       library loaded fine a moment later. Removed `async` so it loads in
+       order, like every other script here. -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
   <!-- Load order matters: each file depends on globals defined by the ones before it. -->
   <script src="js/utils.js" nonce="sa3ry2024"></script>
   <script src="js/firebase.js" nonce="sa3ry2024"></script>
