@@ -189,3 +189,20 @@ openDB().then(() => {
   }
 }).catch(() => {});
 
+/**
+ * Generates a URL-friendly slug from a product name. Works well for ASCII
+ * names (most electronics model names are English/numbers); for Arabic-only
+ * names it falls back to a short unique suffix since Arabic doesn't
+ * transliterate cleanly to a URL slug without a dictionary.
+ */
+function generateSlug(name) {
+  const base = (name || '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\u0600-\u06FF\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+  return base || ('product-' + Date.now().toString(36));
+}
+

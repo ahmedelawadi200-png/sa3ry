@@ -269,6 +269,23 @@ function getMaxPrice(product) {
   return Math.max(...product.stores.map(s => s.price));
 }
 
+/**
+ * BUGFIX: several places (product detail header, favorites list, compare
+ * view/table, cart, recently-viewed) rendered `product.icon` directly with
+ * no fallback. Demo products have an `icon` emoji field, but admin-added
+ * products never did - so for any product added through the admin panel,
+ * these spots displayed the literal text "undefined" instead of the photo
+ * that was actually uploaded for it. This helper picks, in order: the
+ * product's real image, its icon emoji, or a generic box emoji.
+ */
+function getProductVisual(product, size) {
+  const img = product.image || (product.images && product.images[0]);
+  if (img) {
+    return `<img src="${img}" loading="lazy" style="width:100%;height:100%;object-fit:cover;border-radius:inherit" onerror="this.outerHTML='${(product.icon || '📦').replace(/'/g, "\\'")}'">`;
+  }
+  return product.icon || '📦';
+}
+
 function getFilteredProducts() {
   let filtered = productsData.filter(p => {
     if (currentCategory !== 'all' && p.category !== currentCategory) return false;
@@ -613,7 +630,8 @@ function showProductDetail(productId) {
   const body = document.getElementById('productDetailBody');
   body.innerHTML = `
     <div style="text-align:center;margin-bottom:20px">
-      <div style="font-size:80px;margin-bottom:12px">${product.icon}</div>
+      <div style="font-size:80px;margin-bottom:12px;height:110px;display:flex;align-items:center;justify-content:center">${getProductVisual(product)}</div>
+    ${product.images && product.images.length > 1 ? `<div style="display:flex;gap:8px;overflow-x:auto;margin-bottom:16px;padding-bottom:4px">${product.images.map(img => `<img src="${img}" loading="lazy" style="width:60px;height:60px;object-fit:cover;border-radius:8px;flex-shrink:0;border:1px solid var(--border)">`).join('')}</div>` : ''}
       <h2 style="font-size:20px;font-weight:800;margin-bottom:8px">${product.name}</h2>
       <div style="color:var(--primary);font-weight:700;font-size:14px"><i class="fas fa-check-circle"></i> ${product.brand}</div>
       <div class="product-rating" style="justify-content:center;margin-top:8px">
@@ -1129,7 +1147,7 @@ function showFavorites() {
       const minPrice = getMinPrice(p) ?? 0;
       return `
         <div class="fav-item" data-onclick="showProductDetail('${p.id}')">
-          <div class="fav-item-image">${p.icon}</div>
+          <div class="fav-item-image">${getProductVisual(p)}</div>
           <div class="fav-item-info">
             <div class="fav-item-name">${p.name}</div>
             <div class="fav-item-price">${minPrice.toLocaleString()} ج.م</div>
@@ -1178,7 +1196,7 @@ function updateCompareBar() {
     return `
       <div class="compare-item">
         <button class="compare-item-remove" data-onclick="toggleCompare('${p.id}')"><i class="fas fa-times"></i></button>
-        <div class="compare-item-icon">${p.icon}</div>
+        <div class="compare-item-icon">${getProductVisual(p)}</div>
         <div class="compare-item-name">${p.name}</div>
       </div>
     `;
@@ -1202,7 +1220,7 @@ function openComparePage() {
 
   body.innerHTML = `
     <table class="compare-table">
-      <tr><th>المنتج</th>${products.map(p => `<th>${p.icon}<br>${p.name}</th>`).join('')}</tr>
+      <tr><th>المنتج</th>${products.map(p => `<th>${getProductVisual(p)}<br>${p.name}</th>`).join('')}</tr>
       <tr><td>العلامة التجارية</td>${products.map(p => `<td>${p.brand}</td>`).join('')}</tr>
       <tr><td>التقييم</td>${products.map(p => `<td>${p.rating} ★</td>`).join('')}</tr>
       <tr><td>أقل سعر</td>${products.map(p => {
@@ -1297,7 +1315,7 @@ function renderCart() {
     total += itemTotal;
     return `
       <div class="cart-item">
-        <div class="cart-item-image">${product.icon}</div>
+        <div class="cart-item-image">${getProductVisual(product)}</div>
         <div class="cart-item-info">
           <div class="cart-item-name">${product.name}</div>
           <div class="cart-item-store">${item.store}</div>
@@ -1333,7 +1351,7 @@ function checkout() {
 // ==================== RECENTLY VIEWED ====================
 function addToRecentlyViewed(product) {
   recentlyViewed = recentlyViewed.filter(p => p.id !== product.id);
-  recentlyViewed.unshift({id: product.id, name: product.name, icon: product.icon, price: getMinPrice(product) ?? 0});
+  recentlyViewed.unshift({id: product.id, name: product.name, icon: product.icon, image: product.image, price: getMinPrice(product) ?? 0});
   if (recentlyViewed.length > 10) recentlyViewed.pop();
   localStorage.setItem('sa3ry_recent', JSON.stringify(recentlyViewed));
   renderRecentlyViewed();
@@ -1352,7 +1370,7 @@ function renderRecentlyViewed() {
   section.style.display = 'block';
   list.innerHTML = recentlyViewed.map(p => `
     <div class="recent-item" data-onclick="showProductDetail('${p.id}')">
-      <div class="recent-item-image">${p.icon}</div>
+      <div class="recent-item-image">${getProductVisual(p)}</div>
       <div class="recent-item-name">${p.name}</div>
     </div>
   `).join('');

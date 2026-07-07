@@ -580,23 +580,23 @@
 
         <!-- Image Upload -->
         <div style="margin-bottom:20px">
-          <label style="display:block;font-weight:700;font-size:13px;margin-bottom:10px;color:var(--text-secondary)"><i class="fas fa-image"></i> صورة المنتج</label>
+          <label style="display:block;font-weight:700;font-size:13px;margin-bottom:10px;color:var(--text-secondary)"><i class="fas fa-images"></i> صور المنتج (يدعم أكتر من صورة)</label>
           <div id="imageUploadArea" onclick="document.getElementById('adminImageInput').click()" style="border:2px dashed var(--primary);border-radius:12px;padding:24px;text-align:center;cursor:pointer;background:var(--bg-secondary);transition:all 0.2s;position:relative">
-            <input type="file" id="adminImageInput" accept="image/*" style="display:none" onchange="handleImageUpload(this)">
+            <input type="file" id="adminImageInput" accept="image/*" multiple style="display:none" onchange="handleImageUpload(this.files)">
             <div id="imagePreviewContainer" style="display:none">
-              <img id="imagePreview" style="width:100%;max-height:200px;object-fit:cover;border-radius:10px;margin-bottom:10px">
-              <p style="color:var(--success);font-size:13px;font-weight:700"><i class="fas fa-check-circle"></i> تم رفع الصورة</p>
+              <div id="imagePreviewGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(70px,1fr));gap:8px;margin-bottom:10px"></div>
+              <p style="color:var(--success);font-size:13px;font-weight:700"><i class="fas fa-check-circle"></i> <span id="imageUploadCountLabel">تم رفع الصور</span></p>
             </div>
             <div id="imageUploadPlaceholder">
               <i class="fas fa-cloud-upload-alt" style="font-size:40px;color:var(--primary);margin-bottom:10px;display:block"></i>
-              <p style="color:var(--text-secondary);font-size:14px;margin:0">اضغط لرفع صورة المنتج</p>
-              <p style="color:var(--text-tertiary);font-size:12px;margin:4px 0 0">JPG, PNG - حجم أقصى 5MB</p>
+              <p style="color:var(--text-secondary);font-size:14px;margin:0">اضغط أو اسحب الصور هنا وأفلتها</p>
+              <p style="color:var(--text-tertiary);font-size:12px;margin:4px 0 0">JPG, PNG - حجم أقصى 5MB لكل صورة</p>
             </div>
             <div id="imageUploadProgress" style="display:none;margin-top:10px">
               <div style="background:var(--bg-tertiary);border-radius:10px;height:6px;overflow:hidden">
                 <div id="progressBar" style="background:var(--primary);height:100%;width:0%;transition:width 0.3s;border-radius:10px"></div>
               </div>
-              <p style="color:var(--text-secondary);font-size:12px;margin-top:6px">جاري الرفع...</p>
+              <p style="color:var(--text-secondary);font-size:12px;margin-top:6px" id="imageUploadStatusText">جاري الرفع...</p>
             </div>
           </div>
           <input type="hidden" id="adminImageUrl">
@@ -606,11 +606,12 @@
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
           <div>
             <label style="display:block;font-weight:700;font-size:13px;margin-bottom:6px;color:var(--text-secondary)">اسم المنتج *</label>
-            <input type="text" class="form-input" id="adminProductName" placeholder="مثال: iPhone 15 Pro">
+            <input type="text" class="form-input" id="adminProductName" placeholder="مثال: iPhone 15 Pro" oninput="updateSlugPreview()">
           </div>
           <div>
             <label style="display:block;font-weight:700;font-size:13px;margin-bottom:6px;color:var(--text-secondary)">الماركة *</label>
-            <input type="text" class="form-input" id="adminProductBrand" placeholder="مثال: Apple">
+            <input type="text" class="form-input" id="adminProductBrand" list="brandsDatalist" placeholder="مثال: Apple" oninput="updateSlugPreview()">
+            <datalist id="brandsDatalist"></datalist>
           </div>
         </div>
 
@@ -635,7 +636,7 @@
           </div>
           <div>
             <label style="display:block;font-weight:700;font-size:13px;margin-bottom:6px;color:var(--text-secondary)">التقييم (1-5)</label>
-            <input type="number" class="form-input" id="adminProductRating" placeholder="4.5" min="1" max="5" step="0.1">
+            <input type="number" class="form-input" id="adminProductRating" placeholder="4.5" min="1" max="5" step="0.1" oninput="updateProductPreview()">
           </div>
         </div>
 
@@ -648,6 +649,13 @@
             </button>
           </div>
           <div id="adminStores"></div>
+        </div>
+
+        <!-- Live Preview -->
+        <div style="background:var(--bg-secondary);border-radius:12px;padding:16px;margin-bottom:16px">
+          <h5 style="font-weight:800;font-size:14px;margin:0 0 12px"><i class="fas fa-eye" style="color:var(--primary)"></i> معاينة المنتج قبل الحفظ</h5>
+          <div id="adminSlugPreview" style="font-size:11px;color:var(--text-tertiary);margin-bottom:10px;font-family:monospace"></div>
+          <div id="adminProductPreview" style="display:flex;justify-content:center"></div>
         </div>
 
         <button type="button" onclick="saveNewProduct()" style="background:linear-gradient(135deg,#667eea,#764ba2);color:white;border:none;border-radius:12px;padding:16px;width:100%;font-size:16px;font-weight:800;cursor:pointer;letter-spacing:0.5px">
@@ -666,8 +674,42 @@
 
       <!-- Products Table -->
       <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08)">
-        <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
-          <h4 style="font-weight:800;font-size:15px;margin:0"><i class="fas fa-th-list" style="color:var(--primary)"></i> المنتجات المضافة</h4>
+        <div style="padding:16px 20px;border-bottom:1px solid var(--border)">
+          <h4 style="font-weight:800;font-size:15px;margin:0 0 12px"><i class="fas fa-th-list" style="color:var(--primary)"></i> المنتجات المضافة</h4>
+          <div style="display:flex;gap:8px;margin-bottom:10px">
+            <input type="text" class="form-input" id="adminSearchInput" placeholder="بحث في منتجاتك..." style="font-size:13px" oninput="renderAdminProducts()">
+            <select class="form-input" id="adminFilterCategory" style="font-size:13px;max-width:130px" onchange="renderAdminProducts()">
+              <option value="all">كل الفئات</option>
+              <option value="phones">موبايلات</option>
+              <option value="laptops">لابتوبات</option>
+              <option value="tablets">تابلت</option>
+              <option value="headphones">سماعات</option>
+              <option value="tvs">تليفزيونات</option>
+              <option value="cameras">كاميرات</option>
+              <option value="gaming">ألعاب</option>
+              <option value="accessories">إكسسوارات</option>
+            </select>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-secondary);cursor:pointer">
+              <input type="checkbox" id="adminSelectAll" onchange="toggleSelectAllProducts(this.checked)"> تحديد الكل
+            </label>
+            <div id="adminBulkActions" style="display:none;gap:8px">
+              <select id="adminBulkCategory" style="font-size:12px;padding:6px;border-radius:8px;border:1px solid var(--border)">
+                <option value="">تغيير الفئة إلى...</option>
+                <option value="phones">موبايلات</option>
+                <option value="laptops">لابتوبات</option>
+                <option value="tablets">تابلت</option>
+                <option value="headphones">سماعات</option>
+                <option value="tvs">تليفزيونات</option>
+                <option value="cameras">كاميرات</option>
+                <option value="gaming">ألعاب</option>
+                <option value="accessories">إكسسوارات</option>
+              </select>
+              <button type="button" onclick="applyBulkCategory()" style="background:var(--primary);color:white;border:none;border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer">تطبيق</button>
+              <button type="button" onclick="deleteSelectedProducts()" style="background:var(--danger);color:white;border:none;border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer"><i class="fas fa-trash"></i> حذف المحدد</button>
+            </div>
+          </div>
         </div>
         <div id="adminProductsList" style="padding:12px"></div>
       </div>

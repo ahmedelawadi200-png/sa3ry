@@ -23,7 +23,17 @@ function openAdminPanel() {
   // Add initial store field if empty
   const stores = document.getElementById('adminStores');
   if (stores && stores.children.length === 0) addStoreField();
+  renderBrandsDatalist();
   renderAdminProducts();
+  updateProductPreview();
+}
+
+/** NEW: brand autocomplete - suggests brands already used by existing products. */
+function renderBrandsDatalist() {
+  const datalist = document.getElementById('brandsDatalist');
+  if (!datalist) return;
+  const brands = [...new Set(productsData.map(p => p.brand).filter(Boolean))].sort();
+  datalist.innerHTML = brands.map(b => `<option value="${sanitizeHTML(b)}">`).join('');
 }
 
 // ==================== CLOUDINARY IMAGE UPLOAD ====================
@@ -53,44 +63,90 @@ async function uploadToCloudinary(file, attempt = 1) {
   }
 }
 
-async function handleImageUpload(input) {
-  const file = input.files[0];
-  if (!file) return;
-  if (file.size > 5 * 1024 * 1024) { showToast('error', 'خطأ', 'الصورة أكبر من 5MB'); return; }
+// NEW: holds the uploaded image URLs for the product currently being
+// added/edited. First image is treated as the "main" image (product.image,
+// kept for backward compatibility with anything that only reads a single
+// image); the full list is saved as product.images.
+let currentAdminImages = [];
+
+async function handleImageUpload(fileList) {
+  const files = Array.from(fileList || []).filter(f => f.size <= 5 * 1024 * 1024);
+  const rejected = fileList.length - files.length;
+  if (rejected > 0) showToast('error', 'خطأ', `${rejected} صورة تجاوزت حجم 5MB واتجاهلت`);
+  if (!files.length) return;
 
   document.getElementById('imageUploadPlaceholder').style.display = 'none';
   document.getElementById('imageUploadProgress').style.display = 'block';
-  document.getElementById('progressBar').style.width = '15%';
+  document.getElementById('imageUploadStatusText').textContent = `جاري رفع ${files.length} صورة...`;
 
-  // NEW: show an instant local preview while the upload is in flight, so the
-  // admin gets feedback immediately instead of staring at a blank progress bar.
-  const localUrl = URL.createObjectURL(file);
-  const previewImg = document.getElementById('imagePreview');
-  if (previewImg) previewImg.src = localUrl;
-
-  try {
-    // NEW: compress/resize client-side before upload - smaller payload,
-    // faster upload, less Cloudinary bandwidth, same visible quality.
-    document.getElementById('progressBar').style.width = '35%';
-    const compressed = await compressImage(file);
-
-    document.getElementById('progressBar').style.width = '60%';
-    const data = await uploadToCloudinary(compressed);
-    document.getElementById('progressBar').style.width = '100%';
-
-    document.getElementById('adminImageUrl').value = data.secure_url;
-    if (previewImg) previewImg.src = data.secure_url;
-    document.getElementById('imageUploadProgress').style.display = 'none';
-    document.getElementById('imagePreviewContainer').style.display = 'block';
-    showToast('success', 'تم!', 'تم رفع الصورة بنجاح');
-  } catch (e) {
-    document.getElementById('imageUploadProgress').style.display = 'none';
-    document.getElementById('imageUploadPlaceholder').style.display = 'block';
-    showToast('error', 'خطأ', 'فشل رفع الصورة، حاول مرة أخرى');
-  } finally {
-    URL.revokeObjectURL(localUrl);
+  let done = 0;
+  for (const file of files) {
+    document.getElementById('progressBar').style.width = Math.round((done / files.length) * 100) + '%';
+    try {
+      const compressed = await compressImage(file);
+      const data = await uploadToCloudinary(compressed);
+      currentAdminImages.push(data.secure_url);
+    } catch (e) {
+      showToast('error', 'خطأ', `فشل رفع صورة: ${file.name}`);
+    }
+    done++;
+    document.getElementById('progressBar').style.width = Math.round((done / files.length) * 100) + '%';
   }
+
+  document.getElementById('imageUploadProgress').style.display = 'none';
+  renderImagePreviewGrid();
+  if (currentAdminImages.length) showToast('success', 'تم!', 'تم رفع الصور بنجاح');
+  updateProductPreview();
 }
+
+/** Renders the thumbnail grid of all uploaded images, each with a remove (×) button. */
+function renderImagePreviewGrid() {
+  const grid = document.getElementById('imagePreviewGrid');
+  const container = document.getElementById('imagePreviewContainer');
+  const placeholder = document.getElementById('imageUploadPlaceholder');
+  document.getElementById('adminImageUrl').value = currentAdminImages[0] || '';
+
+  if (!currentAdminImages.length) {
+    container.style.display = 'none';
+    placeholder.style.display = 'block';
+    return;
+  }
+  placeholder.style.display = 'none';
+  container.style.display = 'block';
+  document.getElementById('imageUploadCountLabel').textContent = `تم رفع ${currentAdminImages.length} صورة`;
+  grid.innerHTML = currentAdminImages.map((url, i) => `
+    <div style="position:relative">
+      <img src="${url}" loading="lazy" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;${i === 0 ? 'outline:2px solid var(--primary)' : ''}">
+      ${i === 0 ? '<span style="position:absolute;bottom:2px;right:2px;background:var(--primary);color:#fff;font-size:9px;padding:1px 5px;border-radius:4px">رئيسية</span>' : ''}
+      <button type="button" onclick="event.stopPropagation();removeAdminImage(${i})" style="position:absolute;top:-6px;left:-6px;width:20px;height:20px;border-radius:50%;background:var(--danger);color:#fff;border:none;font-size:11px;cursor:pointer;line-height:1">×</button>
+    </div>
+  `).join('');
+}
+
+function removeAdminImage(index) {
+  currentAdminImages.splice(index, 1);
+  renderImagePreviewGrid();
+  updateProductPreview();
+}
+
+/** Drag-and-drop wiring for the upload zone. Runs once at script load since
+ *  these elements are already in the DOM by the time this (body-end) script runs. */
+(function setupImageDragDrop() {
+  const area = document.getElementById('imageUploadArea');
+  if (!area) return;
+  ['dragover', 'dragenter'].forEach(evt => area.addEventListener(evt, (e) => {
+    e.preventDefault();
+    area.style.background = 'var(--primary-light)';
+  }));
+  ['dragleave', 'dragend'].forEach(evt => area.addEventListener(evt, () => {
+    area.style.background = 'var(--bg-secondary)';
+  }));
+  area.addEventListener('drop', (e) => {
+    e.preventDefault();
+    area.style.background = 'var(--bg-secondary)';
+    if (e.dataTransfer?.files?.length) handleImageUpload(e.dataTransfer.files);
+  });
+})();
 
 function addStoreField() {
   const container = document.getElementById('adminStores');
@@ -104,14 +160,18 @@ function addStoreField() {
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
       <input type="text" class="form-input store-name" placeholder="اسم المحل (بي تك، نون...)" style="font-size:13px">
-      <input type="number" class="form-input store-price" placeholder="السعر بالجنيه" style="font-size:13px">
+      <input type="number" class="form-input store-price" placeholder="السعر بالجنيه" style="font-size:13px" oninput="updateProductPreview()">
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
       <input type="text" class="form-input store-location" placeholder="الموقع (القاهرة...)" style="font-size:13px">
       <input type="text" class="form-input store-phone" placeholder="رقم التليفون" style="font-size:13px">
     </div>`;
   container.appendChild(storeDiv);
+  updateProductPreview();
 }
+
+// NEW: tracks which admin-added products are checked for bulk actions.
+let selectedAdminProductIds = new Set();
 
 function renderAdminProducts() {
   const list = document.getElementById('adminProductsList');
@@ -130,23 +190,104 @@ function renderAdminProducts() {
 
   renderAdminStats();
 
+  // NEW: search + category filter, scoped to the admin's own products list.
+  const searchTerm = (document.getElementById('adminSearchInput')?.value || '').trim().toLowerCase();
+  const filterCategory = document.getElementById('adminFilterCategory')?.value || 'all';
+  const visibleProducts = firestoreProducts.filter(p => {
+    if (filterCategory !== 'all' && p.category !== filterCategory) return false;
+    if (searchTerm && !`${p.name} ${p.brand}`.toLowerCase().includes(searchTerm)) return false;
+    return true;
+  });
+
   if (firestoreProducts.length === 0) {
     list.innerHTML = `<div style="text-align:center;padding:30px;color:var(--text-tertiary)"><i class="fas fa-box-open" style="font-size:40px;margin-bottom:10px;display:block;opacity:0.4"></i><p>لا توجد منتجات مضافة بعد</p></div>`;
     return;
   }
-  list.innerHTML = firestoreProducts.map(p => {
+  if (visibleProducts.length === 0) {
+    list.innerHTML = `<div style="text-align:center;padding:30px;color:var(--text-tertiary)"><i class="fas fa-search" style="font-size:32px;margin-bottom:10px;display:block;opacity:0.4"></i><p>مفيش نتائج مطابقة</p></div>`;
+    return;
+  }
+  list.innerHTML = visibleProducts.map(p => {
     const minPrice = getMinPrice(p) ?? 0;
+    const pid = normalizeId(p.id);
+    const checked = selectedAdminProductIds.has(pid) ? 'checked' : '';
     return `<div style="display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--border);border-radius:12px;margin-bottom:8px;background:var(--bg-secondary)">
+      <input type="checkbox" class="admin-product-checkbox" data-id="${pid}" ${checked} onchange="toggleSelectProduct('${pid}', this.checked)" style="flex-shrink:0;width:16px;height:16px">
       ${p.image ? `<img src="${p.image}" loading="lazy" style="width:56px;height:56px;object-fit:cover;border-radius:10px;flex-shrink:0">` : `<div style="width:56px;height:56px;background:var(--bg-tertiary);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0">📦</div>`}
       <div style="flex:1;min-width:0">
         <div style="font-weight:800;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.name}</div>
-        <div style="font-size:12px;color:var(--text-tertiary);margin-top:2px">${p.brand} • ${p.stores ? p.stores.length : 0} محلات</div>
+        <div style="font-size:12px;color:var(--text-tertiary);margin-top:2px">${p.brand} • ${p.stores ? p.stores.length : 0} محلات${p.images && p.images.length > 1 ? ` • ${p.images.length} صور` : ''}</div>
         <div style="font-size:13px;color:var(--primary);font-weight:700;margin-top:4px">من ${minPrice.toLocaleString()} ج.م</div>
       </div>
       <button data-onclick="editProduct('${p.id}')" style="background:rgba(26,115,232,0.1);color:var(--primary);border:1px solid rgba(26,115,232,0.2);border-radius:8px;padding:8px 12px;cursor:pointer;font-size:12px;flex-shrink:0"><i class="fas fa-pen"></i></button>
       <button data-onclick="deleteProduct('${p.id}')" style="background:rgba(239,68,68,0.1);color:var(--danger);border:1px solid rgba(239,68,68,0.2);border-radius:8px;padding:8px 12px;cursor:pointer;font-size:12px;flex-shrink:0"><i class="fas fa-trash"></i></button>
     </div>`;
   }).join('');
+}
+
+function toggleSelectProduct(id, checked) {
+  if (checked) selectedAdminProductIds.add(id); else selectedAdminProductIds.delete(id);
+  const bulkBar = document.getElementById('adminBulkActions');
+  if (bulkBar) bulkBar.style.display = selectedAdminProductIds.size > 0 ? 'flex' : 'none';
+}
+
+function toggleSelectAllProducts(checked) {
+  document.querySelectorAll('.admin-product-checkbox').forEach(cb => {
+    cb.checked = checked;
+    toggleSelectProduct(cb.dataset.id, checked);
+  });
+}
+
+/** NEW: bulk-edit - apply one category to every selected product at once. */
+async function applyBulkCategory() {
+  if (!isAdminUser) { showToast('error', 'غير مصرح', 'هذه العملية تتطلب صلاحية إدارة'); return; }
+  const category = document.getElementById('adminBulkCategory').value;
+  if (!category) { showToast('error', 'خطأ', 'اختار فئة الأول'); return; }
+  if (selectedAdminProductIds.size === 0) return;
+
+  showLoading(`جاري تحديث ${selectedAdminProductIds.size} منتج...`);
+  try {
+    for (const id of selectedAdminProductIds) {
+      await updateProductInFirestore(id, { category });
+      const p = getProductById(id);
+      if (p) p.category = category;
+    }
+    selectedAdminProductIds.clear();
+    renderProducts();
+    renderAdminProducts();
+    document.getElementById('adminBulkActions').style.display = 'none';
+    document.getElementById('adminSelectAll').checked = false;
+    showToast('success', 'تم!', 'اتحدثت الفئة للمنتجات المحددة');
+  } catch (e) {
+    showToast('error', 'خطأ', 'فشل التحديث الجماعي: ' + (e.message || ''));
+  } finally {
+    hideLoading();
+  }
+}
+
+/** NEW: bulk-delete selected products. */
+async function deleteSelectedProducts() {
+  if (!isAdminUser) { showToast('error', 'غير مصرح', 'هذه العملية تتطلب صلاحية إدارة'); return; }
+  if (selectedAdminProductIds.size === 0) return;
+  if (!confirm(`هتحذف ${selectedAdminProductIds.size} منتج، متأكد؟`)) return;
+
+  showLoading('جاري الحذف...');
+  try {
+    for (const id of selectedAdminProductIds) {
+      await deleteProductFromFirestore(id);
+      productsData = productsData.filter(p => normalizeId(p.id) !== id);
+    }
+    selectedAdminProductIds.clear();
+    renderProducts();
+    renderAdminProducts();
+    document.getElementById('adminBulkActions').style.display = 'none';
+    document.getElementById('adminSelectAll').checked = false;
+    showToast('success', 'تم!', 'اتحذفت المنتجات المحددة');
+  } catch (e) {
+    showToast('error', 'خطأ', 'فشل الحذف الجماعي: ' + (e.message || ''));
+  } finally {
+    hideLoading();
+  }
 }
 
 // NEW: Statistics dashboard - category breakdown, average price, and top
@@ -235,15 +376,8 @@ function editProduct(productId) {
   document.getElementById('adminProductBrand').value = product.brand || '';
   if (document.getElementById('adminProductCategory')) document.getElementById('adminProductCategory').value = product.category || '';
   document.getElementById('adminProductRating').value = product.rating || '';
-  document.getElementById('adminImageUrl').value = product.image || '';
-  if (product.image) {
-    const preview = document.getElementById('imagePreview');
-    const previewContainer = document.getElementById('imagePreviewContainer');
-    const placeholder = document.getElementById('imageUploadPlaceholder');
-    if (preview) preview.src = product.image;
-    if (previewContainer) previewContainer.style.display = 'block';
-    if (placeholder) placeholder.style.display = 'none';
-  }
+  currentAdminImages = product.images && product.images.length ? [...product.images] : (product.image ? [product.image] : []);
+  renderImagePreviewGrid();
 
   const storesContainer = document.getElementById('adminStores');
   storesContainer.innerHTML = '';
@@ -258,21 +392,58 @@ function editProduct(productId) {
   });
   if (!product.stores || !product.stores.length) addStoreField();
 
+  updateProductPreview();
   showToast('info', 'وضع التعديل', 'عدّل البيانات ثم اضغط حفظ');
 }
 
 function resetAdminForm() {
   editingProductId = null;
+  currentAdminImages = [];
   document.getElementById('adminProductName').value = '';
   document.getElementById('adminProductBrand').value = '';
   document.getElementById('adminProductRating').value = '';
   document.getElementById('adminImageUrl').value = '';
-  const previewContainer = document.getElementById('imagePreviewContainer');
-  const placeholder = document.getElementById('imageUploadPlaceholder');
-  if (previewContainer) previewContainer.style.display = 'none';
-  if (placeholder) placeholder.style.display = 'block';
+  renderImagePreviewGrid();
   document.getElementById('adminStores').innerHTML = '';
   addStoreField();
+  updateProductPreview();
+}
+
+/** NEW: live slug + product-card preview, updated as the admin fills the form. */
+function updateSlugPreview() {
+  const name = document.getElementById('adminProductName')?.value.trim() || '';
+  const slugEl = document.getElementById('adminSlugPreview');
+  if (slugEl) slugEl.textContent = name ? '/product/' + generateSlug(name) : '';
+  updateProductPreview();
+}
+
+function updateProductPreview() {
+  const container = document.getElementById('adminProductPreview');
+  if (!container) return;
+  const name = document.getElementById('adminProductName')?.value.trim();
+  const brand = document.getElementById('adminProductBrand')?.value.trim();
+  const rating = parseFloat(document.getElementById('adminProductRating')?.value) || 4.5;
+  const storeRows = document.getElementById('adminStores')?.querySelectorAll('div[style]') || [];
+  const prices = Array.from(storeRows).map(row => parseInt(row.querySelector('.store-price')?.value)).filter(p => p > 0);
+  const minPrice = prices.length ? Math.min(...prices) : null;
+
+  if (!name && !brand) {
+    container.innerHTML = '<p style="color:var(--text-tertiary);font-size:12px">هتظهر معاينة المنتج هنا وانت بتكتب البيانات</p>';
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="product-card" style="max-width:180px;pointer-events:none">
+      <div class="product-image" style="height:120px">
+        ${currentAdminImages[0] ? `<img src="${currentAdminImages[0]}" style="width:100%;height:100%;object-fit:cover;border-radius:var(--radius)">` : `<span style="font-size:32px">📦</span>`}
+      </div>
+      <div class="product-info" style="padding:10px">
+        <div class="product-brand" style="font-size:11px">${sanitizeHTML(brand || '...')}</div>
+        <div class="product-name" style="font-size:13px">${sanitizeHTML(name || 'اسم المنتج')}</div>
+        <div style="color:#ffc107;font-size:11px">${'★'.repeat(Math.round(rating))}${'☆'.repeat(5 - Math.round(rating))}</div>
+        <div class="product-price" style="font-size:14px">${minPrice !== null ? 'من ' + minPrice.toLocaleString() + ' ج.م' : 'مفيش سعر لسه'}</div>
+      </div>
+    </div>`;
 }
 
 async function saveNewProduct() {
@@ -282,7 +453,6 @@ async function saveNewProduct() {
   const brand = document.getElementById('adminProductBrand').value.trim();
   const category = document.getElementById('adminProductCategory').value;
   const rating = parseFloat(document.getElementById('adminProductRating').value) || 4.5;
-  const image = document.getElementById('adminImageUrl').value;
 
   if (!name || !brand) { showToast('error', 'خطأ', 'اسم المنتج والماركة مطلوبين'); return; }
   if (!db) { showToast('error', 'خطأ', 'انتظر تحميل Firebase أو أعد تحميل الصفحة'); return; }
@@ -305,7 +475,7 @@ async function saveNewProduct() {
 
   if (stores.length === 0) { showToast('error', 'خطأ', 'أضف محل واحد على الأقل بسعر'); return; }
 
-  const product = { name, brand, category, rating, reviews: 0, stores, image: image || '' };
+  const product = { name, brand, category, rating, reviews: 0, stores, image: currentAdminImages[0] || '', images: currentAdminImages.slice(), slug: generateSlug(name) };
   const isEditing = !!editingProductId;
 
   showLoading(isEditing ? 'جاري حفظ التعديلات...' : 'جاري إضافة المنتج...');
