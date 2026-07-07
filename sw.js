@@ -50,8 +50,23 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   const url = e.request.url;
 
+  // BUGFIX: `Cache.put()` only ever accepts GET requests - calling it with
+  // a POST/PUT/etc. throws "Request method 'X' is unsupported" and crashes
+  // the fetch handler. Firestore's live-sync ("Listen"/"Write" channel)
+  // requests are POST and go to a *.googleapis.com host, so the broad
+  // `url.includes('googleapis.com')` check below was unintentionally
+  // catching them and trying to cache them. Bailing out early for any
+  // non-GET request fixes this at the source, regardless of which branch
+  // below would have matched.
+  if (e.request.method !== 'GET') {
+    return;
+  }
+
   // Cache-first for static assets (fonts, icons, CSS)
-  if (url.includes('googleapis.com') || url.includes('cdnjs.cloudflare.com') || url.includes('fontawesome') || url.includes('html5-qrcode')) {
+  // BUGFIX: narrowed from the overly broad `googleapis.com` (which also
+  // matches Firestore's own API/sync domains) to the specific Google Fonts
+  // host this branch actually intends to cache.
+  if (url.includes('fonts.googleapis.com') || url.includes('fonts.gstatic.com') || url.includes('cdnjs.cloudflare.com') || url.includes('html5-qrcode')) {
     e.respondWith(
       caches.match(e.request).then(cached => {
         return cached || fetch(e.request).then(res => {
