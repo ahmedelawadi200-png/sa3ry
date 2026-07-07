@@ -241,6 +241,7 @@
     </div>
     <div class="header-actions">
       <button type="button" class="icon-btn" onclick="toggleDarkMode()" title="الوضع الليلي"><i class="fas fa-moon" id="darkModeIcon"></i></button>
+      <button type="button" class="icon-btn" onclick="switchTab('cart')" title="السلة"><i class="fas fa-shopping-cart"></i><span class="badge" id="cartBadge" style="display:none">0</span></button>
       <button type="button" class="icon-btn" onclick="showNotifications()" title="الإشعارات"><i class="fas fa-bell"></i><span class="badge" id="notifBadge">3</span></button>
       <button type="button" class="icon-btn" onclick="showProfile()" title="حسابي" id="headerUserIcon"><i class="fas fa-user"></i></button>
     </div>
@@ -530,7 +531,7 @@
 
 <!-- ADMIN PANEL MODAL -->
 <div class="modal-overlay" id="adminModal">
-  <div class="modal-content" style="max-height:95vh;overflow-y:auto;padding:0">
+  <div class="modal-content" style="max-height:95vh;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0">
 
     <!-- Header -->
     <div style="background:linear-gradient(135deg,#667eea,#764ba2);padding:20px;position:sticky;top:0;z-index:10">
