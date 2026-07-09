@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sa3ry-v3.0';
+const CACHE_NAME = 'sa3ry-v4.0';
 const STATIC_ASSETS = [
   './',
   './index.html',
@@ -93,20 +93,24 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // For app shell: cache first, fallback to network
+  // For app shell (JS/HTML/JSON): network-first, falling back to cache when
+  // offline.
+  // BUGFIX: this used to be cache-first, which meant once a file was cached
+  // it was served from cache FOREVER and never re-checked against the
+  // network - a code fix shipped to GitHub would silently never reach
+  // returning visitors unless CACHE_NAME was manually bumped every single
+  // time. Network-first means the latest deployed code is used whenever
+  // there's a connection, while still working offline via the cache.
   if (e.request.mode === 'navigate' || url.endsWith('.html') || url.endsWith('.js') || url.endsWith('.json')) {
     e.respondWith(
-      caches.match(e.request).then(cached => {
-        return cached || fetch(e.request).then(res => {
-          if (res && res.status === 200) {
-            const clone = res.clone();
-            caches.open(CACHE_NAME).then(c => c.put(e.request, clone));
-          }
-          return res;
-        }).catch(() => {
-          // Fallback to offline page if available
-          return caches.match('./index.html');
-        });
+      fetch(e.request).then(res => {
+        if (res && res.status === 200) {
+          const clone = res.clone();
+          caches.open(CACHE_NAME).then(c => c.put(e.request, clone));
+        }
+        return res;
+      }).catch(() => {
+        return caches.match(e.request).then(cached => cached || caches.match('./index.html'));
       })
     );
     return;
