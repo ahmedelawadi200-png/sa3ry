@@ -2,6 +2,21 @@
 // App bootstrap glue. Loads LAST, after every other module.
 'use strict';
 
+// ==================== SCROLL-BLOCKING NUMBER INPUTS ====================
+// BUGFIX: Chrome (and other browsers) let a focused <input type="number">
+// capture the mouse wheel to increment/decrement its value instead of
+// scrolling the page. Inside the admin panel form - which has several
+// number fields close together (rating, price, quantity per store) - this
+// made it feel like scrolling was completely broken near those fields: the
+// number would tick up/down instead of the page moving. Blurring the input
+// the moment a wheel event happens over it lets the scroll pass through to
+// the page normally, while still allowing normal typing/spinner-arrow use.
+document.addEventListener('wheel', function (e) {
+  if (e.target.tagName === 'INPUT' && e.target.type === 'number' && document.activeElement === e.target) {
+    e.target.blur();
+  }
+}, { passive: true });
+
 // ==================== DATA-ONCLICK EVENT DELEGATION ====================
 // CRITICAL BUGFIX: the whole app uses a custom `data-onclick="..."` attribute
 // on dozens of buttons (favorite/heart, compare, add-to-cart, price alert,

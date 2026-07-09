@@ -153,19 +153,33 @@ function addStoreField() {
   const idx = container.children.length + 1;
   const storeDiv = document.createElement('div');
   storeDiv.style.cssText = 'background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px';
+
+  // NEW: pick the store from the `stores` collection instead of typing its
+  // name by hand each time. Falls back to a text field with a friendly
+  // notice if no stores have been added yet in "إدارة المتاجر".
+  const storeOptions = storesData.filter(s => s.active !== false)
+    .map(s => `<option value="${s.id}">${sanitizeHTML(s.name)}</option>`).join('');
+
   storeDiv.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
       <span style="font-weight:700;font-size:13px;color:var(--primary)"><i class="fas fa-store"></i> محل #${idx}</span>
-      <button data-onclick="this.closest('div[style]').remove()" style="background:var(--danger);color:white;border:none;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:11px"><i class="fas fa-trash"></i></button>
+      <button data-onclick="this.closest('div[style]').remove();updateProductPreview()" style="background:var(--danger);color:white;border:none;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:11px"><i class="fas fa-trash"></i></button>
     </div>
+    ${storesData.length ? `
+    <select class="form-input store-select" style="font-size:13px;margin-bottom:8px" onchange="updateProductPreview()">
+      <option value="">اختار المتجر...</option>
+      ${storeOptions}
+    </select>` : `
+    <div style="background:var(--warning);color:#5c3c00;font-size:11px;padding:8px 10px;border-radius:8px;margin-bottom:8px">
+      <i class="fas fa-info-circle"></i> مفيش متاجر مضافة لسه. <a href="#" onclick="event.preventDefault();openStoresManagement()" style="color:#5c3c00;font-weight:700;text-decoration:underline">أضف متجر من هنا</a> أو اكتب الاسم يدوياً تحت:
+    </div>
+    <input type="text" class="form-input store-name-manual" placeholder="اسم المحل (بي تك، نون...)" style="font-size:13px;margin-bottom:8px">
+    `}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
-      <input type="text" class="form-input store-name" placeholder="اسم المحل (بي تك، نون...)" style="font-size:13px">
       <input type="number" class="form-input store-price" placeholder="السعر بالجنيه" style="font-size:13px" oninput="updateProductPreview()">
+      <input type="number" class="form-input store-quantity" placeholder="الكمية (اختياري)" style="font-size:13px" min="0">
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-      <input type="text" class="form-input store-location" placeholder="الموقع (القاهرة...)" style="font-size:13px">
-      <input type="text" class="form-input store-phone" placeholder="رقم التليفون" style="font-size:13px">
-    </div>`;
+    <input type="url" class="form-input store-link" placeholder="رابط المنتج في المتجر (اختياري)" style="font-size:13px">`;
   container.appendChild(storeDiv);
   updateProductPreview();
 }
@@ -512,3 +526,212 @@ async function saveNewProduct() {
   }
 }
 
+
+// ==================== STORES MANAGEMENT (NEW) ====================
+// A dedicated `stores` collection so store info (name/logo/contact/color) is
+// entered once and reused across every product, instead of being retyped
+// by hand each time a product is added.
+let storesData = [];
+let editingStoreId = null;
+let currentStoreLogo = '';
+let storesCurrentPage = 1;
+const STORES_PER_PAGE = 8;
+let storesLoadedOnce = false;
+
+async function loadStoresFromFirestore() {
+  if (!db) return;
+  try {
+    const snapshot = await db.collection('stores').orderBy('name').get();
+    storesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    storesLoadedOnce = true;
+  } catch (e) {
+    console.error('Error loading stores:', e);
+  }
+}
+
+function openStoresManagement() {
+  if (!isAdminUser) { showToast('error', 'غير مصرح', 'هذه الصفحة مخصصة للإدارة فقط'); return; }
+  openModal('storesModal');
+  resetStoreForm();
+  // Load once, then just re-render from the in-memory copy - avoids
+  // re-querying Firestore every time the admin opens this modal.
+  (storesLoadedOnce ? Promise.resolve() : loadStoresFromFirestore()).then(renderStoresList);
+}
+
+async function handleStoreLogoUpload(file) {
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) { showToast('error', 'خطأ', 'الشعار أكبر من 5MB'); return; }
+  const placeholder = document.getElementById('storeLogoPlaceholder');
+  placeholder.innerHTML = '<i class="fas fa-spinner fa-spin" style="font-size:24px;color:#0f9d58"></i>';
+  try {
+    const compressed = await compressImage(file, { maxDimension: 400, quality: 0.85 });
+    const data = await uploadToCloudinary(compressed);
+    currentStoreLogo = data.secure_url;
+    document.getElementById('storeLogoPreview').src = currentStoreLogo;
+    document.getElementById('storeLogoPreviewContainer').style.display = 'block';
+    placeholder.style.display = 'none';
+  } catch (e) {
+    showToast('error', 'خطأ', 'فشل رفع الشعار');
+    placeholder.innerHTML = '<i class="fas fa-cloud-upload-alt" style="font-size:28px;color:#0f9d58"></i><p style="color:var(--text-secondary);font-size:12px;margin:4px 0 0">ارفع شعار المتجر</p>';
+  }
+}
+
+function resetStoreForm() {
+  editingStoreId = null;
+  currentStoreLogo = '';
+  document.getElementById('storeFormTitle').innerHTML = '<i class="fas fa-plus-circle"></i> إضافة متجر جديد';
+  document.getElementById('storeName').value = '';
+  document.getElementById('storeWebsite').value = '';
+  document.getElementById('storePhone').value = '';
+  document.getElementById('storeEmail').value = '';
+  document.getElementById('storeAddress').value = '';
+  document.getElementById('storeColor').value = '#1a73e8';
+  document.getElementById('storeActive').checked = true;
+  document.getElementById('storeLogoPreviewContainer').style.display = 'none';
+  document.getElementById('storeLogoPlaceholder').style.display = 'block';
+  document.getElementById('storeLogoPlaceholder').innerHTML = '<i class="fas fa-cloud-upload-alt" style="font-size:28px;color:#0f9d58"></i><p style="color:var(--text-secondary);font-size:12px;margin:4px 0 0">ارفع شعار المتجر</p>';
+  document.getElementById('cancelStoreEditBtn').style.display = 'none';
+}
+
+function editStore(storeId) {
+  const store = storesData.find(s => s.id === storeId);
+  if (!store) return;
+  editingStoreId = storeId;
+  currentStoreLogo = store.logo || '';
+  document.getElementById('storeFormTitle').innerHTML = '<i class="fas fa-pen"></i> تعديل المتجر';
+  document.getElementById('storeName').value = store.name || '';
+  document.getElementById('storeWebsite').value = store.website || '';
+  document.getElementById('storePhone').value = store.phone || '';
+  document.getElementById('storeEmail').value = store.email || '';
+  document.getElementById('storeAddress').value = store.address || '';
+  document.getElementById('storeColor').value = store.color || '#1a73e8';
+  document.getElementById('storeActive').checked = store.active !== false;
+  if (store.logo) {
+    document.getElementById('storeLogoPreview').src = store.logo;
+    document.getElementById('storeLogoPreviewContainer').style.display = 'block';
+    document.getElementById('storeLogoPlaceholder').style.display = 'none';
+  }
+  document.getElementById('cancelStoreEditBtn').style.display = 'block';
+  document.getElementById('storeFormTitle').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+async function saveStore() {
+  if (!isAdminUser) { showToast('error', 'غير مصرح', 'هذه العملية تتطلب صلاحية إدارة'); return; }
+  const name = document.getElementById('storeName').value.trim();
+  if (!name) { showToast('error', 'خطأ', 'اسم المتجر مطلوب'); return; }
+
+  // Prevent two stores with the exact same name (case-insensitive).
+  const dup = storesData.find(s => s.name.trim().toLowerCase() === name.toLowerCase() && s.id !== editingStoreId);
+  if (dup) { showToast('error', 'خطأ', 'يوجد متجر بنفس الاسم بالفعل'); return; }
+
+  const store = {
+    name,
+    logo: currentStoreLogo,
+    website: document.getElementById('storeWebsite').value.trim(),
+    phone: document.getElementById('storePhone').value.trim(),
+    email: document.getElementById('storeEmail').value.trim(),
+    address: document.getElementById('storeAddress').value.trim(),
+    color: document.getElementById('storeColor').value,
+    active: document.getElementById('storeActive').checked,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
+
+  showLoading(editingStoreId ? 'جاري حفظ التعديلات...' : 'جاري إضافة المتجر...');
+  try {
+    if (editingStoreId) {
+      await db.collection('stores').doc(editingStoreId).update(store);
+      const idx = storesData.findIndex(s => s.id === editingStoreId);
+      if (idx !== -1) storesData[idx] = { ...storesData[idx], ...store };
+      showToast('success', 'تم!', 'اتحفظت تعديلات المتجر');
+    } else {
+      store.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+      const docRef = await db.collection('stores').add(store);
+      storesData.push({ id: docRef.id, ...store });
+      showToast('success', 'تم!', 'اتضاف المتجر بنجاح 🎉');
+    }
+    resetStoreForm();
+    renderStoresList();
+  } catch (e) {
+    showToast('error', 'خطأ', 'فشل حفظ المتجر: ' + (e.message || ''));
+  } finally {
+    hideLoading();
+  }
+}
+
+async function deleteStore(storeId) {
+  if (!isAdminUser) { showToast('error', 'غير مصرح', 'هذه العملية تتطلب صلاحية إدارة'); return; }
+  if (!confirm('هتحذف المتجر ده؟ (مش هيتحذف من المنتجات اللي مضاف ليها بالفعل)')) return;
+  try {
+    await db.collection('stores').doc(storeId).delete();
+    storesData = storesData.filter(s => s.id !== storeId);
+    renderStoresList();
+    showToast('success', 'تم!', 'اتحذف المتجر');
+  } catch (e) {
+    showToast('error', 'خطأ', 'فشل حذف المتجر: ' + (e.message || ''));
+  }
+}
+
+async function toggleStoreActive(storeId, active) {
+  if (!isAdminUser) return;
+  try {
+    await db.collection('stores').doc(storeId).update({ active });
+    const store = storesData.find(s => s.id === storeId);
+    if (store) store.active = active;
+    renderStoresList();
+  } catch (e) {
+    showToast('error', 'خطأ', 'فشل تحديث حالة المتجر');
+  }
+}
+
+function renderStoresList() {
+  const container = document.getElementById('storesListContainer');
+  if (!container) return;
+
+  const searchTerm = (document.getElementById('storeSearchInput')?.value || '').trim().toLowerCase();
+  const filterActive = document.getElementById('storeFilterActive')?.value || 'all';
+  const sortBy = document.getElementById('storeSortBy')?.value || 'name';
+
+  let filtered = storesData.filter(s => {
+    if (searchTerm && !s.name.toLowerCase().includes(searchTerm)) return false;
+    if (filterActive === 'active' && s.active === false) return false;
+    if (filterActive === 'inactive' && s.active !== false) return false;
+    return true;
+  });
+
+  if (sortBy === 'name') filtered.sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+  else if (sortBy === 'newest') filtered.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+  else if (sortBy === 'oldest') filtered.sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / STORES_PER_PAGE));
+  storesCurrentPage = Math.min(storesCurrentPage, totalPages);
+  const pageItems = filtered.slice((storesCurrentPage - 1) * STORES_PER_PAGE, storesCurrentPage * STORES_PER_PAGE);
+
+  if (!filtered.length) {
+    container.innerHTML = `<div style="text-align:center;padding:30px;color:var(--text-tertiary)"><i class="fas fa-store-slash" style="font-size:36px;margin-bottom:10px;display:block;opacity:0.4"></i><p>مفيش متاجر مطابقة</p></div>`;
+    document.getElementById('storesPagination').innerHTML = '';
+    return;
+  }
+
+  container.innerHTML = pageItems.map(s => `
+    <div style="display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--border);border-radius:12px;margin-bottom:8px;background:var(--bg-secondary);opacity:${s.active === false ? '0.55' : '1'}">
+      ${s.logo ? `<img src="${s.logo}" loading="lazy" style="width:48px;height:48px;object-fit:cover;border-radius:10px;flex-shrink:0">` : `<div style="width:48px;height:48px;border-radius:10px;background:${s.color || 'var(--primary)'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;flex-shrink:0">${sanitizeHTML((s.name || '?')[0])}</div>`}
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:800;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${sanitizeHTML(s.name)}</div>
+        <div style="font-size:11px;color:var(--text-tertiary);margin-top:2px">${sanitizeHTML(s.phone || s.address || '')}</div>
+      </div>
+      <label style="display:flex;align-items:center;cursor:pointer" title="${s.active === false ? 'موقوف' : 'مفعّل'}">
+        <input type="checkbox" ${s.active === false ? '' : 'checked'} onchange="toggleStoreActive('${s.id}', this.checked)">
+      </label>
+      <button onclick="editStore('${s.id}')" style="background:rgba(15,157,88,0.1);color:#0f9d58;border:1px solid rgba(15,157,88,0.2);border-radius:8px;padding:8px 12px;cursor:pointer;font-size:12px;flex-shrink:0"><i class="fas fa-pen"></i></button>
+      <button onclick="deleteStore('${s.id}')" style="background:rgba(239,68,68,0.1);color:var(--danger);border:1px solid rgba(239,68,68,0.2);border-radius:8px;padding:8px 12px;cursor:pointer;font-size:12px;flex-shrink:0"><i class="fas fa-trash"></i></button>
+    </div>
+  `).join('');
+
+  const pagination = document.getElementById('storesPagination');
+  if (totalPages <= 1) { pagination.innerHTML = ''; return; }
+  let pageBtns = '';
+  for (let i = 1; i <= totalPages; i++) {
+    pageBtns += `<button onclick="storesCurrentPage=${i};renderStoresList()" style="width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:${i === storesCurrentPage ? '#0f9d58' : 'var(--bg-card)'};color:${i === storesCurrentPage ? '#fff' : 'var(--text)'};cursor:pointer;font-size:12px;font-weight:700">${i}</button>`;
+  }
+  pagination.innerHTML = pageBtns;
+}
