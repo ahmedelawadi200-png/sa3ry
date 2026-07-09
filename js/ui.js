@@ -532,7 +532,15 @@ function trapFocus(modalEl) {
   const first = focusable[0];
   const last = focusable[focusable.length - 1];
   if (!first) return;
-  first.focus();
+  // BUGFIX: this ran while the modal was still mid slide-up-animation
+  // (called after only 50ms, well before the 300-350ms CSS transition
+  // finishes). Focusing an element mid-animation made the browser try to
+  // scroll it into view based on its not-yet-settled position, which
+  // fought with the modal's own scroll container and caused it to jump
+  // and land scrolled-down instead of at the top. `preventScroll: true`
+  // stops the browser from doing any scrolling as a side effect of focus -
+  // the modal already opens scrolled to the top on its own.
+  first.focus({ preventScroll: true });
   // Remove old listener if exists to prevent memory leak
   if (modalEl._focusHandler) {
     modalEl.removeEventListener('keydown', modalEl._focusHandler);
@@ -543,9 +551,9 @@ function trapFocus(modalEl) {
       return;
     }
     if (e.shiftKey) {
-      if (document.activeElement === first) { e.preventDefault(); last && last.focus(); }
+      if (document.activeElement === first) { e.preventDefault(); last && last.focus({ preventScroll: true }); }
     } else {
-      if (document.activeElement === last) { e.preventDefault(); first && first.focus(); }
+      if (document.activeElement === last) { e.preventDefault(); first && first.focus({ preventScroll: true }); }
     }
   };
   modalEl.addEventListener('keydown', modalEl._focusHandler);
