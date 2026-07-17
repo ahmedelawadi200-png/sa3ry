@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sa3ry-v4.0';
+const CACHE_NAME = 'sa3ry-v5.1';
 const STATIC_ASSETS = [
   './',
   './index.html',
@@ -16,6 +16,7 @@ const STATIC_ASSETS = [
   './js/ui.js',
   './js/main.js',
   './404.html',
+  './offline.html',
   './pages/about.html',
   './pages/contact.html',
   './pages/privacy.html',
@@ -23,8 +24,11 @@ const STATIC_ASSETS = [
   './assets/icons/icon-192.png',
   './assets/icons/icon-512.png',
   'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
-  'https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800&display=swap',
-  'https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js'
+  'https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800&display=swap'
+  // NOTE: html5-qrcode intentionally NOT precached here - it's lazy-loaded
+  // only when the QR scanner is opened (see startQRScanner() in search.js),
+  // and gets cached via the CDN fetch-handler branch below the first time
+  // that actually happens, not on every install.
 ];
 
 self.addEventListener('install', (e) => {
@@ -110,7 +114,9 @@ self.addEventListener('fetch', (e) => {
         }
         return res;
       }).catch(() => {
-        return caches.match(e.request).then(cached => cached || caches.match('./index.html'));
+        return caches.match(e.request).then(cached =>
+          cached || caches.match('./index.html').then(shell => shell || caches.match('./offline.html'))
+        );
       })
     );
     return;

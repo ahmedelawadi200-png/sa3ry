@@ -116,7 +116,7 @@ function renderImagePreviewGrid() {
   document.getElementById('imageUploadCountLabel').textContent = `تم رفع ${currentAdminImages.length} صورة`;
   grid.innerHTML = currentAdminImages.map((url, i) => `
     <div style="position:relative">
-      <img src="${url}" loading="lazy" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;${i === 0 ? 'outline:2px solid var(--primary)' : ''}">
+      <img src="${url}" loading="lazy" alt="صورة المنتج ${i + 1}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;${i === 0 ? 'outline:2px solid var(--primary)' : ''}">
       ${i === 0 ? '<span style="position:absolute;bottom:2px;right:2px;background:var(--primary);color:#fff;font-size:9px;padding:1px 5px;border-radius:4px">رئيسية</span>' : ''}
       <button type="button" onclick="event.stopPropagation();removeAdminImage(${i})" style="position:absolute;top:-6px;left:-6px;width:20px;height:20px;border-radius:50%;background:var(--danger);color:#fff;border:none;font-size:11px;cursor:pointer;line-height:1">×</button>
     </div>
@@ -227,7 +227,7 @@ function renderAdminProducts() {
     const checked = selectedAdminProductIds.has(pid) ? 'checked' : '';
     return `<div style="display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--border);border-radius:12px;margin-bottom:8px;background:var(--bg-secondary)">
       <input type="checkbox" class="admin-product-checkbox" data-id="${pid}" ${checked} onchange="toggleSelectProduct('${pid}', this.checked)" style="flex-shrink:0;width:16px;height:16px">
-      ${p.image ? `<img src="${p.image}" loading="lazy" style="width:56px;height:56px;object-fit:cover;border-radius:10px;flex-shrink:0">` : `<div style="width:56px;height:56px;background:var(--bg-tertiary);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0">📦</div>`}
+      ${p.image ? `<img src="${p.image}" loading="lazy" alt="${p.name}" style="width:56px;height:56px;object-fit:cover;border-radius:10px;flex-shrink:0">` : `<div style="width:56px;height:56px;background:var(--bg-tertiary);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0">📦</div>`}
       <div style="flex:1;min-width:0">
         <div style="font-weight:800;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.name}</div>
         <div style="font-size:12px;color:var(--text-tertiary);margin-top:2px">${p.brand} • ${p.stores ? p.stores.length : 0} محلات${p.images && p.images.length > 1 ? ` • ${p.images.length} صور` : ''}</div>
@@ -449,7 +449,7 @@ function updateProductPreview() {
   container.innerHTML = `
     <div class="product-card" style="max-width:180px;pointer-events:none">
       <div class="product-image" style="height:120px">
-        ${currentAdminImages[0] ? `<img src="${currentAdminImages[0]}" style="width:100%;height:100%;object-fit:cover;border-radius:var(--radius)">` : `<span style="font-size:32px">📦</span>`}
+        ${currentAdminImages[0] ? `<img src="${currentAdminImages[0]}" alt="معاينة صورة المنتج" style="width:100%;height:100%;object-fit:cover;border-radius:var(--radius)">` : `<span style="font-size:32px">📦</span>`}
       </div>
       <div class="product-info" style="padding:10px">
         <div class="product-brand" style="font-size:11px">${sanitizeHTML(brand || '...')}</div>
@@ -714,7 +714,7 @@ function renderStoresList() {
 
   container.innerHTML = pageItems.map(s => `
     <div style="display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--border);border-radius:12px;margin-bottom:8px;background:var(--bg-secondary);opacity:${s.active === false ? '0.55' : '1'}">
-      ${s.logo ? `<img src="${s.logo}" loading="lazy" style="width:48px;height:48px;object-fit:cover;border-radius:10px;flex-shrink:0">` : `<div style="width:48px;height:48px;border-radius:10px;background:${s.color || 'var(--primary)'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;flex-shrink:0">${sanitizeHTML((s.name || '?')[0])}</div>`}
+      ${s.logo ? `<img src="${s.logo}" loading="lazy" alt="شعار ${s.name || 'المحل'}" style="width:48px;height:48px;object-fit:cover;border-radius:10px;flex-shrink:0">` : `<div style="width:48px;height:48px;border-radius:10px;background:${s.color || 'var(--primary)'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;flex-shrink:0">${sanitizeHTML((s.name || '?')[0])}</div>`}
       <div style="flex:1;min-width:0">
         <div style="font-weight:800;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${sanitizeHTML(s.name)}</div>
         <div style="font-size:11px;color:var(--text-tertiary);margin-top:2px">${sanitizeHTML(s.phone || s.address || '')}</div>

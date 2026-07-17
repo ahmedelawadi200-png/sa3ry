@@ -73,6 +73,13 @@ async function loadMoreProductsFromFirestore() {
  */
 async function addProductToFirestore(product) {
   if (!isAdminUser) throw new Error('غير مصرح لك بإضافة منتجات');
+  // BUGFIX: rate limiting for this function used to be applied via a
+  // monkey-patch in utils.js that ran at page load, BEFORE this function
+  // even existed (utils.js loads first, products.js loads later in the
+  // script order). `window.addProductToFirestore` was undefined at that
+  // point, so the patch silently never attached - there was effectively no
+  // rate limit at all. Enforcing it directly here fixes that for good.
+  if (!rateLimit('addProduct', 10, 60000)) throw new Error('rate limited');
   try {
     product.createdAt = firebase.firestore.FieldValue.serverTimestamp();
     product.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
@@ -88,6 +95,7 @@ async function addProductToFirestore(product) {
 /** NEW: product editing was requested but never implemented - it simply didn't exist before. */
 async function updateProductInFirestore(productId, product) {
   if (!isAdminUser) throw new Error('غير مصرح لك بتعديل المنتجات');
+  if (!rateLimit('updateProduct', 15, 60000)) throw new Error('rate limited');
   try {
     product.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
     await db.collection('products').doc(productId).update(product);
@@ -281,7 +289,7 @@ function getMaxPrice(product) {
 function getProductVisual(product, size) {
   const img = product.image || (product.images && product.images[0]);
   if (img) {
-    return `<img src="${img}" loading="lazy" style="width:100%;height:100%;object-fit:cover;border-radius:inherit" onerror="this.outerHTML='${(product.icon || '📦').replace(/'/g, "\\'")}'">`;
+    return `<img src="${img}" loading="lazy" alt="${product.name || 'صورة المنتج'}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit" onerror="this.outerHTML='${(product.icon || '📦').replace(/'/g, "\\'")}'">`;
   }
   return product.icon || '📦';
 }
@@ -631,7 +639,7 @@ function showProductDetail(productId) {
   body.innerHTML = `
     <div style="text-align:center;margin-bottom:20px">
       <div style="font-size:80px;margin-bottom:12px;height:110px;display:flex;align-items:center;justify-content:center">${getProductVisual(product)}</div>
-    ${product.images && product.images.length > 1 ? `<div style="display:flex;gap:8px;overflow-x:auto;margin-bottom:16px;padding-bottom:4px">${product.images.map(img => `<img src="${img}" loading="lazy" style="width:60px;height:60px;object-fit:cover;border-radius:8px;flex-shrink:0;border:1px solid var(--border)">`).join('')}</div>` : ''}
+    ${product.images && product.images.length > 1 ? `<div style="display:flex;gap:8px;overflow-x:auto;margin-bottom:16px;padding-bottom:4px">${product.images.map(img => `<img src="${img}" loading="lazy" alt="${product.name} - صورة إضافية" style="width:60px;height:60px;object-fit:cover;border-radius:8px;flex-shrink:0;border:1px solid var(--border)">`).join('')}</div>` : ''}
       <h2 style="font-size:20px;font-weight:800;margin-bottom:8px">${product.name}</h2>
       <div style="color:var(--primary);font-weight:700;font-size:14px"><i class="fas fa-check-circle"></i> ${product.brand}</div>
       <div class="product-rating" style="justify-content:center;margin-top:8px">
@@ -1120,9 +1128,16 @@ function toggleFavorite(productId) {
   if (idx > -1) {
     favorites.splice(idx, 1);
     showToast('info', 'تم', 'تم إزالة المنتج من المفضلة');
+    // NEW: the IndexedDB 'favorites' store existed in the schema but was
+    // never actually written to or read from - favorites only worked
+    // online via localStorage. Keeping it in sync means favorited products
+    // stay browsable offline too, consistent with the rest of the app.
+    idbDelete('favorites', strId).catch(() => {});
   } else {
     favorites.push(productId);
     showToast('success', 'تم!', 'تم إضافة المنتج للمفضلة');
+    const product = getProductById(productId);
+    if (product) idbSave('favorites', { ...product, id: strId }).catch(() => {});
   }
   localStorage.setItem('sa3ry_favorites', JSON.stringify(favorites));
   renderProducts();

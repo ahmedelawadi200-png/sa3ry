@@ -77,12 +77,11 @@ function urlBase64ToUint8Array(base64String) {
   return Uint8Array.from([...rawData].map(char => char.charCodeAt(0)));
 }
 
-// Patch toggleNotifications to use real push
-const _origToggleNotif = window.toggleNotifications;
-window.toggleNotifications = async function() {
-  const result = await subscribeToPushNotifications();
-  if (!result && _origToggleNotif) _origToggleNotif();
-};
+// NOTE: toggleNotifications() used to be patched here to also call
+// subscribeToPushNotifications() - but notifications.js loads before ui.js
+// defines the real toggleNotifications(), so the patch was silently
+// clobbered and never ran. That logic now lives directly inside
+// toggleNotifications() in ui.js instead.
 
 // ==================== BACKGROUND SYNC FOR PRICE ALERTS ====================
 async function syncPriceAlerts() {

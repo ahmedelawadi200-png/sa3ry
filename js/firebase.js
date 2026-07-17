@@ -16,6 +16,7 @@ const firebaseConfig = {
 let auth = null;
 let db = null;
 let googleProvider = null;
+let facebookProvider = null;
 let recaptchaVerifier = null;
 let confirmationResult = null;
 
@@ -85,6 +86,8 @@ async function initFirebase() {
 
     googleProvider = new firebase.auth.GoogleAuthProvider();
     googleProvider.setCustomParameters({ prompt: 'select_account' });
+    facebookProvider = new firebase.auth.FacebookAuthProvider();
+    facebookProvider.setCustomParameters({ display: 'popup' });
 
     firebaseReady = true;
     console.log('✅ Firebase initialized successfully');

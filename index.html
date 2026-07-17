@@ -30,7 +30,7 @@
 <meta name="twitter:description" content="قارن أسعار الموبايلات واللابتوبات والإلكترونيات بين أشهر المتاجر في مصر.">
 <meta name="twitter:image" content="https://ahmedelawadi200-png.github.io/sa3ry/assets/icons/icon-512.png">
 
-<link rel="manifest" href="/sa3ry/manifest.json">
+<link rel="manifest" href="manifest.json">
 <title>سعري - مقارنة أسعار الإلكترونيات</title>
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800&display=swap" rel="stylesheet">
@@ -181,6 +181,7 @@
       </div>
       <div class="divider">أو</div>
       <button type="button" class="btn btn-google btn-full" onclick="handleGoogleLogin()"><i class="fab fa-google"></i> تسجيل الدخول بـ Google</button>
+      <button type="button" class="btn btn-full" style="background:#1877f2;color:#fff;margin-top:8px" onclick="handleFacebookLogin()"><i class="fab fa-facebook-f"></i> تسجيل الدخول بـ Facebook</button>
       <button type="button" class="btn btn-full" style="background:white;color:#25d366;border:2px solid #25d366;margin-top:8px" onclick="openPhoneAuth()"><i class="fas fa-mobile-alt"></i> تسجيل الدخول برقم الموبايل</button>
     </div>
     <button type="button" class="btn btn-guest" onclick="enterGuestMode()"><i class="fas fa-user-clock"></i> تصفح كزائر</button>
@@ -744,7 +745,7 @@
           <div id="storeLogoArea" onclick="document.getElementById('storeLogoInput').click()" style="border:2px dashed #0f9d58;border-radius:12px;padding:16px;text-align:center;cursor:pointer;background:var(--bg-secondary)">
             <input type="file" id="storeLogoInput" accept="image/*" style="display:none" onchange="handleStoreLogoUpload(this.files[0])">
             <div id="storeLogoPreviewContainer" style="display:none">
-              <img id="storeLogoPreview" style="width:64px;height:64px;object-fit:cover;border-radius:12px">
+              <img id="storeLogoPreview" alt="شعار المحل" style="width:64px;height:64px;object-fit:cover;border-radius:12px">
             </div>
             <div id="storeLogoPlaceholder">
               <i class="fas fa-cloud-upload-alt" style="font-size:28px;color:#0f9d58"></i>
@@ -929,6 +930,11 @@
         <div class="profile-menu-text"><div class="profile-menu-title">مسح الذاكرة المؤقتة</div><div class="profile-menu-desc">مسح البيانات المحلية</div></div>
         <i class="fas fa-chevron-left" style="color:var(--text-tertiary)"></i>
       </div>
+      <div class="profile-menu-item" onclick="openCameraModal();closeModal('settingsModal')" style="margin-bottom:12px">
+        <div class="profile-menu-icon" style="background:#e8eaf6;color:#3949ab"><i class="fas fa-camera-retro"></i></div>
+        <div class="profile-menu-text"><div class="profile-menu-title">الكاميرا</div><div class="profile-menu-desc">التقط صور واحفظها مؤقتاً</div></div>
+        <i class="fas fa-chevron-left" style="color:var(--text-tertiary)"></i>
+      </div>
       <div class="profile-menu-item" onclick="showAbout();closeModal('settingsModal')" style="margin-bottom:12px">
         <div class="profile-menu-icon" style="background:#e0f2f1;color:#00695c"><i class="fas fa-info-circle"></i></div>
         <div class="profile-menu-text"><div class="profile-menu-title">عن التطبيق</div><div class="profile-menu-desc">سعري - مقارنة الأسعار</div></div>
@@ -989,7 +995,7 @@
     <div class="modal-body">
       <div style="position:relative;background:#000;border-radius:12px;overflow:hidden;margin-bottom:16px;min-height:200px">
         <video id="imageSearchVideo" style="width:100%;display:block" playsinline></video>
-        <img id="imageSearchPreview" style="width:100%;display:none;border-radius:12px">
+        <img id="imageSearchPreview" alt="الصورة المرفوعة للبحث" style="width:100%;display:none;border-radius:12px">
         <div id="imageSearchPlaceholder" style="position:absolute;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:white;min-height:200px">
           <i class="fas fa-camera" style="font-size:48px;margin-bottom:12px;opacity:0.6"></i>
           <p style="font-size:14px;opacity:0.8">صوّر المنتج أو ارفع صورة</p>
@@ -1022,18 +1028,11 @@
 
 
 <!-- ==================== SERVICE WORKER REGISTRATION ==================== -->
-
-
-
-
-  <!-- BUGFIX: this used to have `async`, which meant it loaded in the
-       background independent of the rest of the page. The fallback check
-       below (which installs a disabled stub if the library "isn't loaded
-       yet") ran before this had any real chance to finish downloading, so
-       the QR scanner was disabled almost every time even when the real
-       library loaded fine a moment later. Removed `async` so it loads in
-       order, like every other script here. -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+  <!-- PERFORMANCE: html5-qrcode used to load eagerly on every single page
+       view even though QR scanning is a niche, occasionally-used feature.
+       It's now lazy-loaded on demand (see startQRScanner() in search.js)
+       only when someone actually opens the QR scanner, saving that request
+       and parse/compile cost for everyone else. -->
   <!-- Load order matters: each file depends on globals defined by the ones before it. -->
   <script src="js/utils.js" nonce="sa3ry2024"></script>
   <script src="js/firebase.js" nonce="sa3ry2024"></script>
@@ -1044,16 +1043,6 @@
   <script src="js/notifications.js" nonce="sa3ry2024"></script>
   <script src="js/ui.js" nonce="sa3ry2024"></script>
   <script src="js/main.js" nonce="sa3ry2024"></script>
-  <script>
-    // Fallback: if html5-qrcode didn't load, provide a stub
-    if (typeof Html5Qrcode === 'undefined') {
-      window.Html5Qrcode = function() {};
-      Html5Qrcode.prototype.start = function() { return Promise.reject('QR scanner not available'); };
-      Html5Qrcode.prototype.stop = function() { return Promise.resolve(); };
-      Html5Qrcode.prototype.isScanning = false;
-      console.warn('html5-qrcode library not loaded - QR scanner disabled');
-    }
-  </script>
 
 </body>
 </html>

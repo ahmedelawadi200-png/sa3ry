@@ -72,13 +72,11 @@ function sanitizeHTML(str) {
     .replace(/\//g, '&#x2F;');
 }
 
-// Patch search to sanitize input
-const _origPerformSearch = window.performSearch;
-window.performSearch = function() {
-  const input = document.getElementById('searchInput');
-  if (input) input.value = input.value.replace(/<[^>]*>/g, '').slice(0, 100);
-  if (_origPerformSearch) _origPerformSearch();
-};
+// NOTE: search input sanitization used to be applied via a monkey-patch
+// here, but utils.js loads before search.js defines the real
+// performSearch(), so the patch was silently clobbered and never actually
+// ran. The sanitization now lives directly inside performSearch() in
+// search.js instead.
 
 // ==================== RATE LIMITING ====================
 const _apiCallLog = {};
@@ -93,15 +91,11 @@ function rateLimit(key, maxCalls = 5, windowMs = 60000) {
   _apiCallLog[key].push(now);
   return true;
 }
-
-// Patch addProductToFirestore to rate limit
-const _origAdd = window.addProductToFirestore;
-if (_origAdd) {
-  window.addProductToFirestore = function(product) {
-    if (!rateLimit('addProduct', 10, 60000)) return Promise.reject(new Error('rate limited'));
-    return _origAdd(product);
-  };
-}
+// NOTE: this used to also monkey-patch window.addProductToFirestore right
+// here to add rate limiting - but utils.js loads before products.js, so
+// that function didn't exist yet and the patch silently never attached.
+// The rate limit check now lives directly inside addProductToFirestore()
+// and updateProductInFirestore() in products.js instead.
 
 // ==================== INDEXEDDB FOR OFFLINE PRODUCTS ====================
 const DB_NAME = 'sa3ryDB';
@@ -170,6 +164,20 @@ async function idbDelete(store, key) {
       tx.oncomplete = resolve;
       tx.onerror = reject;
     });
+  } catch(e) {}
+}
+
+/** Clears every IndexedDB object store - used by the "Clear cache" settings action. */
+async function idbClearAll() {
+  try {
+    const db = idb || await openDB();
+    const stores = ['products', 'favorites', 'searches', 'priceAlerts'];
+    await Promise.all(stores.map(store => new Promise((resolve) => {
+      const tx = db.transaction(store, 'readwrite');
+      tx.objectStore(store).clear();
+      tx.oncomplete = resolve;
+      tx.onerror = resolve;
+    })));
   } catch(e) {}
 }
 

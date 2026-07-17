@@ -69,7 +69,7 @@ function takePhoto() {
 function renderCameraGallery() {
   const gallery = document.getElementById('cameraGallery');
   gallery.innerHTML = capturedPhotos.map(url => 
-    `<img src="${url}" data-onclick="viewPhoto('${url}')">`
+    `<img src="${url}" alt="صورة ملتقطة" data-onclick="viewPhoto('${url}')">`
   ).join('');
 }
 
@@ -86,15 +86,32 @@ function toggleQRScanner() {
 }
 
 function startQRScanner() {
-  html5QrCode = new Html5Qrcode("qrScannerContainer");
+  const container = document.getElementById('qrScannerContainer');
+  const btn = document.getElementById('qrToggleBtn');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري التحميل...'; }
 
-  html5QrCode.start(
-    { facingMode: "environment" },
-    { fps: 10, qrbox: { width: 200, height: 200 } },
-    onQRScanSuccess,
-    onQRScanFailure
-  ).catch(err => {
-    showToast('error', 'خطأ', 'لا يمكن تشغيل الكاميرا');
+  // PERFORMANCE: html5-qrcode (~100KB+) used to load on every single page
+  // visit even for users who never open the QR scanner. Now it only loads
+  // the first time someone actually opens it, via the same loadScript()
+  // helper already used for the Firebase SDKs.
+  const ready = typeof Html5Qrcode !== 'undefined'
+    ? Promise.resolve()
+    : loadScript('https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js');
+
+  ready.then(() => {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-stop"></i> إيقاف الماسح'; }
+    html5QrCode = new Html5Qrcode("qrScannerContainer");
+    html5QrCode.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: { width: 200, height: 200 } },
+      onQRScanSuccess,
+      onQRScanFailure
+    ).catch(err => {
+      showToast('error', 'خطأ', 'لا يمكن تشغيل الكاميرا');
+    });
+  }).catch(() => {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-camera"></i> تشغيل الكاميرا'; }
+    showToast('error', 'خطأ', 'تعذر تحميل ماسح QR، تحقق من الإنترنت');
   });
 }
 
@@ -144,6 +161,12 @@ function handleSearchInput() {
 
 function performSearch() {
   const input = document.getElementById('searchInput');
+  // BUGFIX: search input used to be "sanitized" by a patch in utils.js that
+  // never actually worked - utils.js loads before this file, so by the time
+  // this real performSearch() was defined here, it silently overwrote that
+  // patched version entirely. Applying the same strip-tags + length-cap
+  // directly here instead, as originally intended.
+  input.value = input.value.replace(/<[^>]*>/g, '').slice(0, 100);
   searchQuery = input.value.trim();
   document.getElementById('searchSuggestions').style.display = 'none';
   renderProducts();

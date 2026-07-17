@@ -472,7 +472,46 @@ function handleGoogleLogin() {
 }
 
 function handleFacebookLogin() {
-  showToast('info', 'قريباً', 'تسجيل الدخول بـ Facebook سيكون متاحاً قريباً');
+  if (!auth || !facebookProvider) {
+    showToast('error', 'خطأ', 'Firebase غير متصل');
+    return;
+  }
+
+  showLoading('جاري الاتصال بـ Facebook...');
+
+  // Use redirect on mobile (iOS Safari) where popup may be blocked
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  if (isMobile) {
+    auth.signInWithRedirect(facebookProvider);
+    return;
+  }
+
+  auth.signInWithPopup(facebookProvider)
+    .then((result) => {
+      const user = result.user;
+      currentUser = {
+        name: user.displayName || 'مستخدم',
+        email: user.email,
+        phone: user.phoneNumber || '',
+        avatar: user.photoURL || '👤',
+        uid: user.uid,
+        provider: 'facebook'
+      };
+      localStorage.setItem('sa3ry_user', JSON.stringify(currentUser));
+      hideLoading();
+      showToast('success', 'تم!', 'أهلاً ' + (user.displayName || 'بيك') + ' 👋');
+      showMainApp();
+    })
+    .catch((error) => {
+      hideLoading();
+      if (error.code === 'auth/popup-blocked') {
+        showToast('error', 'خطأ', 'السماح بالـ Popup مطلوب في المتصفح');
+      } else if (error.code === 'auth/account-exists-with-different-credential') {
+        showToast('error', 'خطأ', 'الإيميل ده مسجل بطريقة تانية (جوجل أو باسورد) قبل كده');
+      } else {
+        showToast('error', 'خطأ', getAuthErrorMessage(error.code));
+      }
+    });
 }
 
 function enterGuestMode() {

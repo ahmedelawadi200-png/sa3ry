@@ -132,7 +132,20 @@ function initApp() {
           isGuest = true;
           showMainApp();
         } else {
-          showLoginGate();
+          // BUGFIX: the onboarding slides (illustrations explaining the
+          // app's features) were fully built - HTML, CSS, and the
+          // showOnboarding()/skipOnboarding()/nextOnboardingSlide()
+          // functions - but nothing ever called showOnboarding() to
+          // actually display them. Every user, including brand-new ones,
+          // was dropped straight into the login gate. Now a genuinely
+          // first-time visitor (no saved session, no onboarding-seen flag)
+          // sees the onboarding first; skipping or finishing it already
+          // calls showLoginGate() on its own.
+          if (!localStorage.getItem('sa3ry_onboarding')) {
+            showOnboarding();
+          } else {
+            showLoginGate();
+          }
         }
       }, 300);
     }
@@ -225,7 +238,7 @@ function showProfile() {
     const avatarEl = document.getElementById('profileAvatar');
     const avatar = currentUser.avatar || '';
     if (avatar.startsWith('http')) {
-      avatarEl.innerHTML = `<img src="${avatar}" style="width:100%;height:100%;border-radius:50%;object-fit:cover" onerror="this.parentElement.textContent='👤'">`;
+      avatarEl.innerHTML = `<img src="${avatar}" alt="الصورة الشخصية" style="width:100%;height:100%;border-radius:50%;object-fit:cover" onerror="this.parentElement.textContent='👤'">`;
     } else {
       avatarEl.textContent = avatar || '👤';
     }
@@ -285,26 +298,23 @@ function showSettingsModal() {
   openModal('settingsModal');
 }
 
-function showSettings() {
-  showSettingsModal();
-}
-
 function toggleDarkModeSettings() {
   toggleDarkMode();
 }
 
 function toggleNotifications() {
-  if ('Notification' in window) {
-    Notification.requestPermission().then(permission => {
-      if (permission === 'granted') {
-        showToast('success', 'تم!', 'تم تفعيل الإشعارات');
-      } else {
-        showToast('info', 'تنبيه', 'تم إلغاء الإشعارات');
-      }
-    });
-  } else {
+  if (!('Notification' in window)) {
     showToast('error', 'خطأ', 'المتصفح لا يدعم الإشعارات');
+    return;
   }
+  // BUGFIX: this used to only request permission and never actually create
+  // a push subscription - a patch in notifications.js meant to wire up
+  // subscribeToPushNotifications() ran before this function even existed
+  // (notifications.js loads before ui.js) and was silently overwritten once
+  // this real definition loaded. So granting permission never actually
+  // enabled push notifications from the server, just the browser prompt.
+  // subscribeToPushNotifications() handles the permission prompt itself.
+  subscribeToPushNotifications();
 }
 
 function changeLanguage() {
@@ -314,8 +324,13 @@ function changeLanguage() {
 function clearCache() {
   if (confirm('هل أنت متأكد من مسح جميع البيانات المحلية؟')) {
     localStorage.clear();
-    showToast('success', 'تم!', 'تم مسح الذاكرة المؤقتة');
-    setTimeout(() => location.reload(), 1500);
+    // BUGFIX: this only ever cleared localStorage - the offline product/
+    // favorites/search cache in IndexedDB was left behind untouched, so
+    // "clear cache" didn't really clear everything it claimed to.
+    idbClearAll().finally(() => {
+      showToast('success', 'تم!', 'تم مسح الذاكرة المؤقتة');
+      setTimeout(() => location.reload(), 1500);
+    });
   }
 }
 
@@ -372,6 +387,14 @@ function openModal(id) {
   modal.style.display = 'flex';
   setTimeout(() => modal.classList.add('active'), 10);
   document.body.style.overflow = 'hidden';
+  // BUGFIX: a modal's internal scroll position was never reset on open.
+  // Once a modal had been scrolled down once (even programmatically, e.g.
+  // by a scrollIntoView() call elsewhere), every future open of that same
+  // modal would silently start at that same scrolled-down position instead
+  // of the top - looking exactly like "the top fields disappeared" even
+  // though nothing was actually wrong with them.
+  const content = modal.querySelector('.modal-content');
+  if (content) content.scrollTop = 0;
 }
 
 function closeModal(id) {
