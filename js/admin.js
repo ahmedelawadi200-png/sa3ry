@@ -735,3 +735,190 @@ function renderStoresList() {
   }
   pagination.innerHTML = pageBtns;
 }
+
+// ==================== REVIEW QUEUE ====================
+// Ambiguous 75%-85% product matches from the price-sync backend
+// (backend/functions/src/matching/matchProducts.js) land in /reviewQueue
+// with status:'pending'. An admin confirms (same product, merge them) or
+// rejects (different products, leave separate) - never auto-merged.
+let reviewQueueItems = [];
+
+async function loadReviewQueueCount() {
+  if (!db || !isAdminUser) return;
+  try {
+    const snapshot = await db.collection('reviewQueue').where('status', '==', 'pending').get();
+    const badge = document.getElementById('reviewQueueBadge');
+    if (badge) {
+      badge.textContent = snapshot.size;
+      badge.style.display = snapshot.size > 0 ? 'flex' : 'none';
+    }
+  } catch (e) { /* not fatal - badge just stays hidden */ }
+}
+
+async function openReviewQueue() {
+  if (!isAdminUser) { showToast('error', 'غير مصرح', 'هذه الصفحة مخصصة للإدارة فقط'); return; }
+  openModal('reviewQueueModal');
+  const list = document.getElementById('reviewQueueList');
+  list.innerHTML = '<div style="text-align:center;padding:30px"><i class="fas fa-spinner fa-spin" style="font-size:24px;color:#ff9800"></i></div>';
+  try {
+    const snapshot = await db.collection('reviewQueue').where('status', '==', 'pending').orderBy('createdAt', 'desc').limit(50).get();
+    reviewQueueItems = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    renderReviewQueue();
+  } catch (e) {
+    list.innerHTML = '<p style="text-align:center;color:var(--danger);padding:20px">فشل تحميل طابور المراجعة</p>';
+  }
+}
+
+function renderReviewQueue() {
+  const list = document.getElementById('reviewQueueList');
+  if (!reviewQueueItems.length) {
+    list.innerHTML = `<div style="text-align:center;padding:30px;color:var(--text-tertiary)"><i class="fas fa-check-circle" style="font-size:40px;margin-bottom:10px;display:block;opacity:0.4"></i><p>مفيش حاجة محتاجة مراجعة دلوقتي 🎉</p></div>`;
+    return;
+  }
+  list.innerHTML = reviewQueueItems.map(item => `
+    <div style="border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px;background:var(--bg-secondary)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <span style="background:#fff3e0;color:#e65100;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px">تشابه ${Math.round(item.similarity * 100)}%</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;margin-bottom:12px">
+        <div style="font-size:13px;font-weight:700">${sanitizeHTML(item.itemA.title)}<div style="font-size:11px;color:var(--text-tertiary);font-weight:400">${(item.itemA.price||0).toLocaleString()} ج.م</div></div>
+        <i class="fas fa-question" style="color:var(--text-tertiary)"></i>
+        <div style="font-size:13px;font-weight:700">${sanitizeHTML(item.itemB.title)}<div style="font-size:11px;color:var(--text-tertiary);font-weight:400">${(item.itemB.price||0).toLocaleString()} ج.م</div></div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button onclick="confirmReviewMatch('${item.id}')" style="flex:1;background:rgba(15,157,88,0.1);color:#0f9d58;border:1px solid rgba(15,157,88,0.2);border-radius:8px;padding:8px;font-size:12px;font-weight:700;cursor:pointer"><i class="fas fa-check"></i> نفس المنتج</button>
+        <button onclick="rejectReviewMatch('${item.id}')" style="flex:1;background:rgba(239,68,68,0.1);color:var(--danger);border:1px solid rgba(239,68,68,0.2);border-radius:8px;padding:8px;font-size:12px;font-weight:700;cursor:pointer"><i class="fas fa-times"></i> مختلفين</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+/** Admin confirms the two items ARE the same product - merges their store prices into one product doc. */
+async function confirmReviewMatch(reviewId) {
+  if (!isAdminUser) return;
+  const item = reviewQueueItems.find(r => r.id === reviewId);
+  if (!item) return;
+  try {
+    const existing = productsData.find(p =>
+      normalizeId(p.id) === normalizeId(item.itemA.productId || '') ||
+      (p.name && p.name.trim().toLowerCase() === item.itemA.title.trim().toLowerCase())
+    );
+    if (existing) {
+      const stores = [...(existing.stores || [])];
+      if (!stores.some(s => s.storeId === item.itemB.storeId)) {
+        stores.push({ storeId: item.itemB.storeId, price: item.itemB.price });
+      }
+      await updateProductInFirestore(existing.id, { stores });
+      const idx = productsData.findIndex(p => normalizeId(p.id) === normalizeId(existing.id));
+      if (idx !== -1) productsData[idx].stores = stores;
+      renderProducts();
+    }
+    await db.collection('reviewQueue').doc(reviewId).update({ status: 'confirmed', resolvedAt: firebase.firestore.FieldValue.serverTimestamp() });
+    reviewQueueItems = reviewQueueItems.filter(r => r.id !== reviewId);
+    renderReviewQueue();
+    loadReviewQueueCount();
+    showToast('success', 'تم!', 'اتدمج المنتج');
+  } catch (e) {
+    showToast('error', 'خطأ', 'فشلت العملية: ' + (e.message || ''));
+  }
+}
+
+/** Admin rejects - these are genuinely different products, leave them separate. */
+async function rejectReviewMatch(reviewId) {
+  if (!isAdminUser) return;
+  try {
+    await db.collection('reviewQueue').doc(reviewId).update({ status: 'rejected', resolvedAt: firebase.firestore.FieldValue.serverTimestamp() });
+    reviewQueueItems = reviewQueueItems.filter(r => r.id !== reviewId);
+    renderReviewQueue();
+    loadReviewQueueCount();
+    showToast('info', 'تم', 'اعتبرناهم منتجين مختلفين');
+  } catch (e) {
+    showToast('error', 'خطأ', 'فشلت العملية: ' + (e.message || ''));
+  }
+}
+
+// ==================== PROVIDER HEALTH DASHBOARD ====================
+// Reads /providerRuns (written by backend/functions/src/firestore/writeResults.js
+// at the end of every sync) and shows, per provider: last run time, status,
+// items found/matched, and error count.
+async function openProviderHealth() {
+  if (!isAdminUser) { showToast('error', 'غير مصرح', 'هذه الصفحة مخصصة للإدارة فقط'); return; }
+  openModal('providerHealthModal');
+  await loadProviderHealth();
+}
+
+async function loadProviderHealth() {
+  const list = document.getElementById('providerHealthList');
+  list.innerHTML = '<div style="text-align:center;padding:30px"><i class="fas fa-spinner fa-spin" style="font-size:24px;color:#0f9d58"></i></div>';
+  try {
+    const snapshot = await db.collection('providerRuns').orderBy('finishedAt', 'desc').limit(100).get();
+    const runs = snapshot.docs.map(doc => doc.data());
+
+    const latestByProvider = {};
+    const errorCountByProvider = {};
+    runs.forEach(run => {
+      if (!latestByProvider[run.providerName]) latestByProvider[run.providerName] = run;
+      errorCountByProvider[run.providerName] = (errorCountByProvider[run.providerName] || 0) + (run.errors?.length || 0);
+    });
+
+    renderProviderHealth(latestByProvider, errorCountByProvider);
+  } catch (e) {
+    list.innerHTML = '<p style="text-align:center;color:var(--danger);padding:20px">فشل تحميل حالة المصادر - لسه معملتش أي تحديث؟</p>';
+  }
+}
+
+function renderProviderHealth(latestByProvider, errorCountByProvider) {
+  const list = document.getElementById('providerHealthList');
+  const providers = Object.keys(latestByProvider);
+  if (!providers.length) {
+    list.innerHTML = `<div style="text-align:center;padding:30px;color:var(--text-tertiary)"><i class="fas fa-satellite-dish" style="font-size:40px;margin-bottom:10px;display:block;opacity:0.4"></i><p>لسه مفيش أي تحديث اشتغل. دوس "شغّل التحديث دلوقتي" فوق.</p></div>`;
+    return;
+  }
+
+  const statusMeta = {
+    success: { color: '#0f9d58', bg: '#e6f4ea', label: 'شغال' },
+    failed: { color: 'var(--danger)', bg: '#fce8e6', label: 'فشل' },
+    skipped: { color: 'var(--text-tertiary)', bg: 'var(--bg-tertiary)', label: 'مش مفعّل' },
+    partial: { color: '#ff9800', bg: '#fff3e0', label: 'جزئي' },
+  };
+
+  list.innerHTML = providers.map(name => {
+    const run = latestByProvider[name];
+    const meta = statusMeta[run.status] || statusMeta.skipped;
+    const finishedAt = run.finishedAt?.toDate ? run.finishedAt.toDate() : null;
+    const timeLabel = finishedAt ? finishedAt.toLocaleString('ar-EG') : '-';
+    const errorCount = errorCountByProvider[name] || 0;
+
+    return `<div style="border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px;background:var(--bg-secondary)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <span style="font-weight:800;font-size:14px;text-transform:capitalize">${sanitizeHTML(name)}</span>
+        <span style="background:${meta.bg};color:${meta.color};font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px">${meta.label}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:12px;color:var(--text-secondary)">
+        <div><i class="fas fa-clock"></i> ${timeLabel}</div>
+        <div><i class="fas fa-box"></i> ${run.itemsFound || 0} منتج</div>
+        <div style="color:${errorCount > 0 ? 'var(--danger)' : 'inherit'}"><i class="fas fa-exclamation-triangle"></i> ${errorCount} خطأ</div>
+      </div>
+      ${run.errors && run.errors.length ? `<div style="margin-top:8px;font-size:11px;color:var(--danger);background:#fce8e6;border-radius:8px;padding:8px">${sanitizeHTML(run.errors[0])}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+/** Manually triggers a sync via the triggerPriceSync Cloud Function. */
+async function triggerManualSync() {
+  if (!isAdminUser) return;
+  const btn = document.getElementById('manualSyncBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري التحديث...';
+  try {
+    const fn = firebase.functions().httpsCallable('triggerPriceSync');
+    const result = await fn();
+    showToast('success', 'تم!', `اتحدث ${result.data.productsWritten || 0} منتج`);
+    await loadProviderHealth();
+  } catch (e) {
+    showToast('error', 'خطأ', 'فشل التحديث: ' + (e.message || ''));
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-sync"></i> شغّل التحديث دلوقتي (بدل ما تستنى 12 ساعة)';
+  }
+}

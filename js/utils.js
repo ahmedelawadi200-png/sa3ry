@@ -72,11 +72,12 @@ function sanitizeHTML(str) {
     .replace(/\//g, '&#x2F;');
 }
 
-// NOTE: search input sanitization used to be applied via a monkey-patch
-// here, but utils.js loads before search.js defines the real
-// performSearch(), so the patch was silently clobbered and never actually
-// ran. The sanitization now lives directly inside performSearch() in
-// search.js instead.
+// NOTE: search input sanitization and addProductToFirestore rate limiting
+// used to be applied via monkey-patches here, but utils.js loads before
+// search.js/products.js define the real functions, so those patches were
+// silently clobbered and never actually ran. Both now live directly inside
+// the real functions instead (performSearch() in search.js,
+// addProductToFirestore()/updateProductInFirestore() in products.js).
 
 // ==================== RATE LIMITING ====================
 const _apiCallLog = {};
@@ -91,11 +92,6 @@ function rateLimit(key, maxCalls = 5, windowMs = 60000) {
   _apiCallLog[key].push(now);
   return true;
 }
-// NOTE: this used to also monkey-patch window.addProductToFirestore right
-// here to add rate limiting - but utils.js loads before products.js, so
-// that function didn't exist yet and the patch silently never attached.
-// The rate limit check now lives directly inside addProductToFirestore()
-// and updateProductInFirestore() in products.js instead.
 
 // ==================== INDEXEDDB FOR OFFLINE PRODUCTS ====================
 const DB_NAME = 'sa3ryDB';

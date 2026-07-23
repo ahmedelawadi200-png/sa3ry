@@ -479,7 +479,6 @@ function handleFacebookLogin() {
 
   showLoading('جاري الاتصال بـ Facebook...');
 
-  // Use redirect on mobile (iOS Safari) where popup may be blocked
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
   if (isMobile) {
     auth.signInWithRedirect(facebookProvider);

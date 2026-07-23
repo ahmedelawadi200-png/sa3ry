@@ -86,14 +86,9 @@ function toggleQRScanner() {
 }
 
 function startQRScanner() {
-  const container = document.getElementById('qrScannerContainer');
   const btn = document.getElementById('qrToggleBtn');
   if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري التحميل...'; }
 
-  // PERFORMANCE: html5-qrcode (~100KB+) used to load on every single page
-  // visit even for users who never open the QR scanner. Now it only loads
-  // the first time someone actually opens it, via the same loadScript()
-  // helper already used for the Firebase SDKs.
   const ready = typeof Html5Qrcode !== 'undefined'
     ? Promise.resolve()
     : loadScript('https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js');

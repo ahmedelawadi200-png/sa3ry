@@ -73,12 +73,6 @@ async function loadMoreProductsFromFirestore() {
  */
 async function addProductToFirestore(product) {
   if (!isAdminUser) throw new Error('غير مصرح لك بإضافة منتجات');
-  // BUGFIX: rate limiting for this function used to be applied via a
-  // monkey-patch in utils.js that ran at page load, BEFORE this function
-  // even existed (utils.js loads first, products.js loads later in the
-  // script order). `window.addProductToFirestore` was undefined at that
-  // point, so the patch silently never attached - there was effectively no
-  // rate limit at all. Enforcing it directly here fixes that for good.
   if (!rateLimit('addProduct', 10, 60000)) throw new Error('rate limited');
   try {
     product.createdAt = firebase.firestore.FieldValue.serverTimestamp();
@@ -1128,10 +1122,6 @@ function toggleFavorite(productId) {
   if (idx > -1) {
     favorites.splice(idx, 1);
     showToast('info', 'تم', 'تم إزالة المنتج من المفضلة');
-    // NEW: the IndexedDB 'favorites' store existed in the schema but was
-    // never actually written to or read from - favorites only worked
-    // online via localStorage. Keeping it in sync means favorited products
-    // stay browsable offline too, consistent with the rest of the app.
     idbDelete('favorites', strId).catch(() => {});
   } else {
     favorites.push(productId);

@@ -132,15 +132,6 @@ function initApp() {
           isGuest = true;
           showMainApp();
         } else {
-          // BUGFIX: the onboarding slides (illustrations explaining the
-          // app's features) were fully built - HTML, CSS, and the
-          // showOnboarding()/skipOnboarding()/nextOnboardingSlide()
-          // functions - but nothing ever called showOnboarding() to
-          // actually display them. Every user, including brand-new ones,
-          // was dropped straight into the login gate. Now a genuinely
-          // first-time visitor (no saved session, no onboarding-seen flag)
-          // sees the onboarding first; skipping or finishing it already
-          // calls showLoginGate() on its own.
           if (!localStorage.getItem('sa3ry_onboarding')) {
             showOnboarding();
           } else {
@@ -311,9 +302,8 @@ function toggleNotifications() {
   // a push subscription - a patch in notifications.js meant to wire up
   // subscribeToPushNotifications() ran before this function even existed
   // (notifications.js loads before ui.js) and was silently overwritten once
-  // this real definition loaded. So granting permission never actually
-  // enabled push notifications from the server, just the browser prompt.
-  // subscribeToPushNotifications() handles the permission prompt itself.
+  // this real definition loaded. subscribeToPushNotifications() handles the
+  // permission prompt itself.
   subscribeToPushNotifications();
 }
 
@@ -324,9 +314,6 @@ function changeLanguage() {
 function clearCache() {
   if (confirm('هل أنت متأكد من مسح جميع البيانات المحلية؟')) {
     localStorage.clear();
-    // BUGFIX: this only ever cleared localStorage - the offline product/
-    // favorites/search cache in IndexedDB was left behind untouched, so
-    // "clear cache" didn't really clear everything it claimed to.
     idbClearAll().finally(() => {
       showToast('success', 'تم!', 'تم مسح الذاكرة المؤقتة');
       setTimeout(() => location.reload(), 1500);

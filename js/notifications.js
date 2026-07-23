@@ -44,8 +44,8 @@ async function subscribeToPushNotifications() {
     const perm = await Notification.requestPermission();
     if (perm !== 'granted') { showToast('info', 'تنبيه', 'لم يتم السماح بالإشعارات'); return false; }
     const reg = await navigator.serviceWorker.ready;
-    // Use VAPID public key (demo - replace with real key in production)
-    const vapidKey = 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U';
+    // Real project VAPID key (from Firebase Console → Project settings → Cloud Messaging)
+    const vapidKey = 'BJZi6ThR4rsP74sJ2oiCDJhBYvATXJF-lK4vo1dXzyB6EAZMUC0KIffPeNu6UvKji3PsxnqsFVzoatv_gg9tDe8';
     let sub;
     try {
       sub = await reg.pushManager.subscribe({

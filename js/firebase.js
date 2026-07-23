@@ -42,6 +42,7 @@ async function loadFirebaseSDK() {
       await loadScript(`${base}/firebase-app-compat.js`);
       await loadScript(`${base}/firebase-auth-compat.js`);
       await loadScript(`${base}/firebase-firestore-compat.js`);
+      await loadScript(`${base}/firebase-functions-compat.js`);
       return true;
     } catch (e) {
       console.warn('[firebase] CDN failed, trying next mirror...', base);

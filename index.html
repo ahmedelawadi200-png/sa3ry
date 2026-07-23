@@ -54,6 +54,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-functions-compat.js"></script>
 
 
 </head>
@@ -556,6 +557,15 @@
         <button type="button" onclick="openStoresManagement()" style="width:100%;margin-top:8px;background:rgba(255,255,255,0.2);color:white;border:none;border-radius:10px;padding:10px;font-size:13px;font-weight:700;cursor:pointer">
           <i class="fas fa-store"></i> إدارة المتاجر
         </button>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button type="button" onclick="openReviewQueue()" style="flex:1;position:relative;background:rgba(255,255,255,0.2);color:white;border:none;border-radius:10px;padding:10px;font-size:13px;font-weight:700;cursor:pointer">
+            <i class="fas fa-tasks"></i> طابور المراجعة
+            <span id="reviewQueueBadge" class="badge" style="display:none;position:absolute;top:-6px;left:-6px">0</span>
+          </button>
+          <button type="button" onclick="openProviderHealth()" style="flex:1;background:rgba(255,255,255,0.2);color:white;border:none;border-radius:10px;padding:10px;font-size:13px;font-weight:700;cursor:pointer">
+            <i class="fas fa-heartbeat"></i> حالة المصادر
+          </button>
+        </div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
           <div style="background:rgba(255,255,255,0.15);border-radius:12px;padding:12px;text-align:center">
             <div style="color:white;font-size:22px;font-weight:800" id="adminStatTotal">0</div>
@@ -822,6 +832,45 @@
   </div>
 </div>
 
+<!-- Review Queue: ambiguous 75%-85% product matches from the price-sync backend, needing an admin's yes/no -->
+<div class="modal-overlay" id="reviewQueueModal">
+  <div class="modal-content" style="max-height:90vh;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0">
+    <div style="background:linear-gradient(135deg,#ff9800,#f57c00);padding:20px;position:sticky;top:0;z-index:10">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <h3 style="color:white;font-size:18px;font-weight:800;margin:0"><i class="fas fa-tasks"></i> طابور المراجعة</h3>
+          <p style="color:rgba(255,255,255,0.85);font-size:12px;margin:4px 0 0">مطابقات محتملة (75%-85%) - محتاجة تأكيدك</p>
+        </div>
+        <button type="button" onclick="closeModal('reviewQueueModal')" style="background:rgba(255,255,255,0.2);border:none;color:white;width:36px;height:36px;border-radius:50%;cursor:pointer;font-size:16px"><i class="fas fa-times"></i></button>
+      </div>
+    </div>
+    <div style="padding:16px">
+      <div id="reviewQueueList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Provider Health Dashboard: status/last-run/error-count for every price-sync provider -->
+<div class="modal-overlay" id="providerHealthModal">
+  <div class="modal-content" style="max-height:90vh;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0">
+    <div style="background:linear-gradient(135deg,#0f9d58,#0b7a43);padding:20px;position:sticky;top:0;z-index:10">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <h3 style="color:white;font-size:18px;font-weight:800;margin:0"><i class="fas fa-heartbeat"></i> حالة مصادر الأسعار</h3>
+          <p style="color:rgba(255,255,255,0.85);font-size:12px;margin:4px 0 0">آخر تحديث لكل مصدر بيانات</p>
+        </div>
+        <button type="button" onclick="closeModal('providerHealthModal')" style="background:rgba(255,255,255,0.2);border:none;color:white;width:36px;height:36px;border-radius:50%;cursor:pointer;font-size:16px"><i class="fas fa-times"></i></button>
+      </div>
+    </div>
+    <div style="padding:16px">
+      <button type="button" onclick="triggerManualSync()" id="manualSyncBtn" style="width:100%;background:var(--primary);color:white;border:none;border-radius:10px;padding:12px;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:16px">
+        <i class="fas fa-sync"></i> شغّل التحديث دلوقتي (بدل ما تستنى 12 ساعة)
+      </button>
+      <div id="providerHealthList"></div>
+    </div>
+  </div>
+</div>
+
 
 <div class="modal-overlay" id="qrScannerModal">
   <div class="modal-content">
@@ -1028,11 +1077,21 @@
 
 
 <!-- ==================== SERVICE WORKER REGISTRATION ==================== -->
+
+
+
+
+  <!-- BUGFIX: this used to have `async`, which meant it loaded in the
+       background independent of the rest of the page. The fallback check
+       below (which installs a disabled stub if the library "isn't loaded
+       yet") ran before this had any real chance to finish downloading, so
+       the QR scanner was disabled almost every time even when the real
+       library loaded fine a moment later. Removed `async` so it loads in
+       order, like every other script here. -->
   <!-- PERFORMANCE: html5-qrcode used to load eagerly on every single page
        view even though QR scanning is a niche, occasionally-used feature.
        It's now lazy-loaded on demand (see startQRScanner() in search.js)
-       only when someone actually opens the QR scanner, saving that request
-       and parse/compile cost for everyone else. -->
+       only when someone actually opens the QR scanner. -->
   <!-- Load order matters: each file depends on globals defined by the ones before it. -->
   <script src="js/utils.js" nonce="sa3ry2024"></script>
   <script src="js/firebase.js" nonce="sa3ry2024"></script>

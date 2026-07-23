@@ -17,6 +17,7 @@ const STATIC_ASSETS = [
   './js/main.js',
   './404.html',
   './offline.html',
+  './offline.html',
   './pages/about.html',
   './pages/contact.html',
   './pages/privacy.html',
