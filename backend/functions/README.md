@@ -30,6 +30,12 @@ cd functions
 npm install
 ```
 
+## 4.5) تشغيل الاختبارات (اختياري بس منصوح بيه)
+```bash
+npm test
+```
+فيه 26 اختبار بتغطي محرك المطابقة (SKU، الاسم المطابق، التشابه الغامض، حدود المراجعة)، والـ Providers (التحقق من الشكل، Amazon مش شغال من غير إعدادات)، ونظام Retry/Timeout، وسلوك الـ Orchestrator (فشل provider واحد مايوقفش الباقي). كلهم لازم يعدّوا (pass) قبل أي نشر.
+
 ## 5) النشر
 ```bash
 firebase deploy --only functions

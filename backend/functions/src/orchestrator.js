@@ -1,6 +1,7 @@
 const { assertValidProvider } = require('./providers/provider.interface');
 const { matchProducts } = require('./matching/matchProducts');
 const { writeResults } = require('./firestore/writeResults');
+const { withRetryAndTimeout } = require('./utils/withRetryAndTimeout');
 
 // ==================== PROVIDER REGISTRY ====================
 // To add a new store: create yourstore.provider.js (copy _template.provider.js),
@@ -13,19 +14,38 @@ const PROVIDERS = [
 
 const DEFAULT_CATEGORIES = ['phones', 'laptops', 'tablets', 'headphones', 'tvs', 'cameras', 'gaming', 'accessories'];
 
+// Retry/timeout policy applied uniformly to every provider - a single
+// provider can't hang the whole run, and a single provider can't need to
+// implement its own retry logic.
+const PROVIDER_RETRY_OPTS = { retries: 2, timeoutMs: 30000, backoffMs: 1000 };
+
+function log(...args) {
+  console.log(`[orchestrator ${new Date().toISOString()}]`, ...args);
+}
+function logError(...args) {
+  console.error(`[orchestrator ${new Date().toISOString()}]`, ...args);
+}
+
 /**
- * Runs a full sync: calls every configured provider, matches their combined
- * results, and writes the outcome to Firestore. Designed so one provider
- * failing never aborts the others - each is isolated in its own try/catch
- * and gets its own entry in providerRuns regardless of outcome.
+ * Runs a full sync: calls every configured provider (with retry + timeout),
+ * matches their combined results, and writes the outcome to Firestore.
+ * Designed so one provider failing - or hanging - never aborts the others:
+ * each is isolated in its own try/catch and gets its own entry in
+ * providerRuns regardless of outcome.
+ *
+ * @param {{categories?: string[], providers?: Array}} opts
+ *   `providers` defaults to the real PROVIDERS registry - overridable for
+ *   tests, so orchestrator behavior (isolation, retry, logging) can be
+ *   verified with fake providers instead of hitting real Firestore/APIs.
  */
-async function runSync({ categories = DEFAULT_CATEGORIES } = {}) {
-  PROVIDERS.forEach(assertValidProvider);
+async function runSync({ categories = DEFAULT_CATEGORIES, providers = PROVIDERS, writeResultsFn = writeResults } = {}) {
+  providers.forEach(assertValidProvider);
+  log(`starting run - ${providers.length} providers registered, categories: ${categories.join(', ')}`);
 
   const allItems = [];
   const runsByProvider = {};
 
-  for (const provider of PROVIDERS) {
+  for (const provider of providers) {
     const startedAt = new Date();
     if (!provider.isConfigured()) {
       runsByProvider[provider.name] = {
@@ -35,12 +55,28 @@ async function runSync({ categories = DEFAULT_CATEGORIES } = {}) {
         itemsMatched: 0,
         errors: [],
       };
-      console.log(`[orchestrator] ${provider.name}: skipped (not configured)`);
+      log(`${provider.name}: skipped (not configured)`);
       continue;
     }
 
+    const attemptErrors = [];
     try {
-      const items = await provider.fetchProducts({ categories });
+      const items = await withRetryAndTimeout(
+        () => provider.fetchProducts({ categories }),
+        {
+          ...PROVIDER_RETRY_OPTS,
+          label: `${provider.name}.fetchProducts()`,
+          onAttempt: (attemptNumber, err) => {
+            if (err) {
+              const isTimeout = err.code === 'TIMEOUT';
+              attemptErrors.push(String(err.message || err));
+              log(`${provider.name}: attempt ${attemptNumber} ${isTimeout ? 'timed out' : 'failed'} - ${err.message}`);
+            } else if (attemptNumber > 1) {
+              log(`${provider.name}: succeeded on attempt ${attemptNumber} (after ${attemptNumber - 1} retry/retries)`);
+            }
+          },
+        }
+      );
       items.forEach((item) => { item._providerName = provider.name; });
       allItems.push(...items);
       runsByProvider[provider.name] = {
@@ -48,18 +84,18 @@ async function runSync({ categories = DEFAULT_CATEGORIES } = {}) {
         status: 'success',
         itemsFound: items.length,
         itemsMatched: 0, // filled in after matching, below
-        errors: [],
+        errors: attemptErrors, // retries that failed before the eventual success, if any - kept for visibility
       };
-      console.log(`[orchestrator] ${provider.name}: fetched ${items.length} items`);
+      log(`${provider.name}: fetched ${items.length} items`);
     } catch (err) {
       runsByProvider[provider.name] = {
         startedAt,
         status: 'failed',
         itemsFound: 0,
         itemsMatched: 0,
-        errors: [String(err.message || err)],
+        errors: [...attemptErrors, String(err.message || err)],
       };
-      console.error(`[orchestrator] ${provider.name} failed:`, err);
+      logError(`${provider.name}: failed after all retries -`, err.message || err);
       // Deliberately no throw here - one provider failing must not stop the others.
     }
   }
@@ -73,14 +109,15 @@ async function runSync({ categories = DEFAULT_CATEGORIES } = {}) {
     });
   });
 
-  const writeSummary = await writeResults({ matched, needsReview, runsByProvider });
+  const writeSummary = await writeResultsFn({ matched, needsReview, runsByProvider });
 
-  console.log(
-    `[orchestrator] done. products written: ${writeSummary.productsWritten}, ` +
-    `review queue: ${writeSummary.reviewQueueEntries}, confidence threshold: ${confidenceThreshold}`
+  log(
+    `run complete - products written: ${writeSummary.productsWritten}, ` +
+    `review queue: ${writeSummary.reviewQueueEntries}, confidence threshold: ${confidenceThreshold}, ` +
+    `providers: ${Object.entries(runsByProvider).map(([name, r]) => `${name}=${r.status}`).join(', ')}`
   );
 
   return { ...writeSummary, runsByProvider };
 }
 
-module.exports = { runSync, PROVIDERS, DEFAULT_CATEGORIES };
+module.exports = { runSync, PROVIDERS, DEFAULT_CATEGORIES, PROVIDER_RETRY_OPTS };
